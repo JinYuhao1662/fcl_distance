@@ -42,8 +42,6 @@
 
 #include "fcl/narrowphase/distance.h"
 
-#include "fcl/narrowphase/collision.h"
-
 namespace fcl
 {
 
@@ -126,54 +124,18 @@ typename NarrowPhaseSolver::S distance(
     }
   }
 
-  // TODO(JS): FCL supports negative distance calculation only for OT_GEOM shape
-  // types (i.e., primitive shapes like sphere, cylinder, box, and so on). As a
-  // workaround for the rest shape types like mesh and octree, following
-  // computes negative distance using additional penetration depth computation
-  // of collision checking routine. The downside of this workaround is that the
-  // pair of nearest points is not guaranteed to be on the surface of the
-  // objects.
-  if(res
-     && result.min_distance < static_cast<S>(0)
-     && request.enable_signed_distance)
-  {
-    if (std::is_same<NarrowPhaseSolver, detail::GJKSolver_libccd<S>>::value
-        && object_type1 == OT_GEOM && object_type2 == OT_GEOM)
-    {
-      return res;
-    }
-
-    CollisionRequest<S> collision_request;
-    collision_request.enable_contact = true;
-
-    CollisionResult<S> collision_result;
-
-    collide(o1, tf1, o2, tf2, nsolver, collision_request, collision_result);
-    assert(collision_result.isCollision());
-
-    std::size_t index = static_cast<std::size_t>(-1);
-    S max_pen_depth = std::numeric_limits<S>::min();
-    for (auto i = 0u; i < collision_result.numContacts(); ++i)
-    {
-      const auto& contact = collision_result.getContact(i);
-      if (max_pen_depth < contact.penetration_depth)
-      {
-        max_pen_depth = contact.penetration_depth;
-        index = i;
-      }
-    }
-    result.min_distance = -max_pen_depth;
-    assert(index != static_cast<std::size_t>(-1));
-
-    if (request.enable_nearest_points)
-    {
-      const Vector3<S>& pos = collision_result.getContact(index).pos;
-      result.nearest_points[0] = pos;
-      result.nearest_points[1] = pos;
-      // Note: The pair of nearest points is not guaranteed to be on the
-      // surface of the objects.
-    }
-  }
+  // Upstream FCL follows this with a signed-distance workaround: when the
+  // result came out negative it re-runs the query through collide() and
+  // reports minus the deepest penetration.  That path is dead for
+  // mesh-vs-mesh, because TriangleDistance<S>::triDistance never returns a
+  // negative value -- it returns exactly 0 for overlapping triangles.  It is
+  // dropped here, which is what lets the whole collision dispatch chain
+  // (collision_func_matrix, the collision traversal nodes, Intersect<S>, the
+  // primitive intersection routines) stay out of this extraction.
+  //
+  // DistanceRequest::enable_signed_distance therefore has no effect: an
+  // overlapping mesh pair reports 0, exactly as upstream FCL does when the
+  // flag is left at its default.
 
   if(!nsolver_)
     delete nsolver;
@@ -189,23 +151,12 @@ S distance(
     const DistanceRequest<S>& request,
     DistanceResult<S>& result)
 {
-  switch(request.gjk_solver_type)
-  {
-  case GST_LIBCCD:
-    {
-      detail::GJKSolver_libccd<S> solver;
-      solver.distance_tolerance = request.distance_tolerance;
-      return distance(o1, o2, &solver, request, result);
-    }
-  case GST_INDEP:
-    {
-      detail::GJKSolver_indep<S> solver;
-      solver.gjk_tolerance = request.distance_tolerance;
-      return distance(o1, o2, &solver, request, result);
-    }
-  default:
-    return -1; // error
-  }
+  // Upstream branches on request.gjk_solver_type here to build a
+  // GJKSolver_libccd or a GJKSolver_indep.  Mesh-vs-mesh never consults the
+  // solver (see detail::MeshDistanceSolver), so both branches would behave
+  // identically; a single placeholder replaces them.
+  detail::MeshDistanceSolver<S> solver;
+  return distance(o1, o2, &solver, request, result);
 }
 
 //==============================================================================
@@ -215,23 +166,9 @@ S distance(
     const CollisionGeometry<S>* o2, const Transform3<S>& tf2,
     const DistanceRequest<S>& request, DistanceResult<S>& result)
 {
-  switch(request.gjk_solver_type)
-  {
-  case GST_LIBCCD:
-    {
-      detail::GJKSolver_libccd<S> solver;
-      solver.distance_tolerance = request.distance_tolerance;
-      return distance(o1, tf1, o2, tf2, &solver, request, result);
-    }
-  case GST_INDEP:
-    {
-      detail::GJKSolver_indep<S> solver;
-      solver.gjk_tolerance = request.distance_tolerance;
-      return distance(o1, tf1, o2, tf2, &solver, request, result);
-    }
-  default:
-    return -1;
-  }
+  // See the note on the CollisionObject overload above.
+  detail::MeshDistanceSolver<S> solver;
+  return distance(o1, tf1, o2, tf2, &solver, request, result);
 }
 
 } // namespace fcl

@@ -42,13 +42,33 @@
 
 #include "fcl/narrowphase/collision_object.h"
 #include "fcl/narrowphase/detail/distance_func_matrix.h"
-#include "fcl/narrowphase/detail/gjk_solver_indep.h"
-#include "fcl/narrowphase/detail/gjk_solver_libccd.h"
 
 namespace fcl
 {
 
-/// @brief Main distance interface: given two collision objects, and the requirements for contacts, including whether return the nearest points, this function performs the distance between them. 
+namespace detail
+{
+
+/// @brief Narrow-phase solver placeholder for the mesh-vs-mesh case.
+///
+/// The dispatch matrix and the distance entry points are templated on a
+/// narrow-phase solver because upstream FCL needs one for shape-vs-shape and
+/// mesh-vs-shape queries.  Mesh-vs-mesh never consults it: BVHDistance()
+/// discards the pointer via FCL_UNUSED and the leaf test goes straight to
+/// TriangleDistance<S>::triDistance.  This extraction therefore substitutes an
+/// empty type for GJKSolver_libccd / GJKSolver_indep, which is what removes
+/// the GJK, EPA and libccd code (and the libccd link dependency) from the
+/// build.  Consequently DistanceRequest::gjk_solver_type has no effect here —
+/// as it already had none for mesh-vs-mesh in upstream FCL.
+template <typename S_>
+struct MeshDistanceSolver
+{
+  using S = S_;
+};
+
+} // namespace detail
+
+/// @brief Main distance interface: given two collision objects, and the requirements for contacts, including whether return the nearest points, this function performs the distance between them.
 /// Return value is the minimum distance generated between the two objects.
 template <typename S>
 FCL_EXPORT

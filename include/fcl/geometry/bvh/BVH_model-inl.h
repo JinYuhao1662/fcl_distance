@@ -44,6 +44,13 @@
 #include <new>
 #include <algorithm>
 
+// fcl_distance: added.  refitTree_bottomup() calls fit<BV>() but upstream
+// never includes its declaration here -- in the full FCL tree the header
+// always arrives transitively (via geometry/shape/utility-inl.h or
+// BVH_utility-inl.h).  This extraction drops both of those, so the dependency
+// has to be spelled out.
+#include "fcl/math/bv/utility.h"
+
 namespace fcl
 {
 

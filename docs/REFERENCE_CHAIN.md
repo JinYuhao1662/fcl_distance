@@ -205,97 +205,67 @@ GEOM×GEOM 81 项 `ShapeShapeCollide`（叶子 `nsolver->shapeIntersect`，特�
 特化，叶子 `shapeTriangleIntersect`）、BVH×BVH 8 项（叶子
 `Intersect<S>::intersect_Triangle`）。
 
-## 5. 文件级引用闭包（复刻清单）
+## 5. 本提取的裁剪范围（mesh × mesh only）
 
-按目录（`.h` 均含配套 `-inl.h`；★ = 上游死代码但按规约保留）：
+本仓库只服务 §4.3 那一条分支。62 个头文件，按目录：
 
 ```
-fcl/config.h, fcl/export.h                       [静态化生成物]
-fcl/common/    types.h(接 eigen_lite), unused.h, warning.h
+fcl/config.h, fcl/export.h                       [静态化的 CMake 生成物]
+fcl/common/    types.h, unused.h
 fcl/math/      constants.h, triangle.h, geometry.h
-fcl/math/detail/   project.h, polysolver.h
 fcl/math/bv/   AABB, OBB, RSS, OBBRSS, kIOS, kDOP, utility
-fcl/math/      variance3        [仅被 BVH_utility 引用]
 fcl/geometry/  collision_geometry
-fcl/geometry/shape/  shape_base, box, sphere, ellipsoid, capsule, cone,
-                     cylinder, convex, halfspace, plane, triangle_p,
-                     representation, utility(computeBV/constructBox)
-fcl/geometry/bvh/    BVH_internal, BVH_model, BVH_utility, BV_node, BV_node_base
+fcl/geometry/bvh/    BVH_internal, BVH_model, BV_node, BV_node_base
 fcl/geometry/bvh/detail/  BV_fitter(+base), BV_splitter(+base), BVH_front
 fcl/narrowphase/     gjk_solver_type, collision_object,
-                     distance_request/result, collision_request/result,
-                     contact, contact_point, cost_source,
-                     distance(+inl), collision(+inl)
-fcl/narrowphase/detail/  distance_func_matrix, collision_func_matrix,
-                     gjk_solver_indep, gjk_solver_libccd,
-                     failed_at_this_configuration
-fcl/narrowphase/detail/convexity_based_algorithm/
-                     gjk, epa, minkowski_diff, gjk_libccd,
-                     alloc, list, simplex, support, polytope   [libccd 私有头的上游内置副本]
-fcl/narrowphase/detail/primitive_shape_algorithm/
-                     box_box, capsule_capsule, sphere_box, sphere_capsule,
-                     sphere_cylinder, sphere_sphere, sphere_triangle,
-                     halfspace, plane, triangle_distance, intersect
+                     distance_request, distance_result, distance(+inl)
+fcl/narrowphase/detail/  distance_func_matrix（裁剪至 4 项）
+fcl/narrowphase/detail/primitive_shape_algorithm/  triangle_distance
 fcl/narrowphase/detail/traversal/
-                     traversal_node_base, traversal_recurse, collision_node
+                     traversal_node_base,
+                     traversal_recurse（仅距离递归）,
+                     collision_node（仅 distance 驱动）
 fcl/narrowphase/detail/traversal/distance/
-                     distance_traversal_node_base, shape_distance_traversal_node,
-                     bvh_distance_traversal_node, mesh_distance_traversal_node,
-                     bvh_shape_distance_traversal_node, mesh_shape_distance_traversal_node,
-                     shape_bvh_distance_traversal_node★, shape_mesh_distance_traversal_node★
-fcl/narrowphase/detail/traversal/collision/
-                     collision_traversal_node_base, shape_collision_traversal_node,
-                     bvh_collision_traversal_node, mesh_collision_traversal_node,
-                     bvh_shape_collision_traversal_node, mesh_shape_collision_traversal_node,
-                     shape_bvh_collision_traversal_node★, shape_mesh_collision_traversal_node★,
-                     mesh_continuous_collision_traversal_node,  [被 collision_func_matrix 无条件 include]
-                     intersect                                   [三角形相交内核]
+                     distance_traversal_node_base,
+                     bvh_distance_traversal_node,
+                     mesh_distance_traversal_node
 ```
 
-共 177 个头文件（含 `-inl.h`），其中 174 个来自上游，3 个为本提取新增
-（`config.h`、`export.h` 静态替代 CMake 生成物；`fcl.h` 伞头）。
+相对完整闭包（177 个）删去的 115 个文件：9 种形状及其 `computeBV` 特化表、
+GJK/EPA/libccd 全家（含上游内置的 libccd 私有头副本）、除 `triangle_distance`
+外的全部 primitive 算法、全部碰撞遍历节点与 `Intersect<S>`、
+`collision_func_matrix`、`collision.h`、`contact`/`cost_source`/`collision_request`/
+`collision_result`、`math/detail/{project,polysolver}`、`variance3`、`BVH_utility`、
+`fcl.h` 伞头。
 
-**裁剪**（不在 distance 运行时闭包内）：broadphase 全部、continuous collision /
-conservative advancement 全部、`math/motion`、`math/sampler`、`math/rng`、octree
-（octomap）、`common/{profiler,time,exception}`。
-`distance_func_matrix-inl.h` 对 4 个 conservative advancement 头的 include 为
-无用引用，移植中删除。
+## 6. 外部依赖
 
-## 6. 外部依赖边界
-
-本提取**保留上游 FCL 的全部外部依赖**，不做任何替换：
-
-| 依赖 | 用途 | 宿主工程需提供 |
+| 依赖 | 本提取 | 上游 FCL |
 |---|---|---|
-| **Eigen 3** | 唯一的数学层：`common/types.h` 中 `Vector3/Matrix3/Transform3/Quaternion/AngleAxis/Translation3/VectorN` 全部是 Eigen 别名；代码大量使用 `linear()/translation()/col()/noalias()/array()/asDiagonal()/逗号初始化/SelfAdjointEigenSolver/unitOrthogonal` | 头文件路径 |
-| **libccd** | `GST_LIBCCD`（FCL 默认求解器）的底座：`ccd_vec3_t/ccd_quat_t/ccd_t` 类型与内联运算，以及 `polytope.c / support.c / vec3.c / mpr.c` 中的 `__ccdSupport`、`ccdPt{Init,Destroy,AddVertex,AddEdge,AddFace,Nearest}`、`ccdVec3PointTriDist2`、`ccdVec3PointSegmentDist2`、`ccdMPR{Intersect,Penetration}` | `-lccd` 链接 |
-| **octomap** | OcTree 几何（可选） | 不需要——按 `FCL_HAVE_OCTOMAP=0` 裁剪，与上游 `-DFCL_WITH_OCTOMAP=OFF` 构建行为一致 |
+| **Eigen 3** | 需要（仅头文件路径） | 需要 |
+| **libccd** | **不需要** | 需要（`-lccd`） |
+| **octomap** | 不需要 | 可选 |
 
-注：`convexity_based_algorithm/{alloc,list,simplex,support,polytope}.h` 是**上游 FCL
-自带的 libccd 私有头副本**（不是本提取新增），原样保留，仍 `#include <ccd/*.h>`。
+libccd 之所以能去掉：mesh × mesh 距离不经过任何 GJK 求解器。
+`BVHDistance()` 收到 solver 指针后立刻 `FCL_UNUSED(nsolver)`，
+叶子测试直接调 `TriangleDistance<S>::triDistance`（PQP 风格的解析算法）。
+上游把两者绑在一起只是因为分发矩阵要同时服务形状对。
 
-## 7. 保真声明
+## 7. 保真度
 
-- 除下述四类改动外，与上游**逐字节相同**（由 `tools/verify_against_upstream.py`
-  逐文件 diff 分类验证，任何未分类差异都会报错）：
-  1. 每个文件开头一行来源注释；
-  2. 删除 `extern template` 声明——header-only 构建下没有 libfcl 提供显式实例化，
-     保留它们会导致链接错误；
-  3. 6 处从 `src/*.cpp` 内联进头文件的非模板定义（`Triangle`、`BVNodeBase`、
-     `BVHFrontNode`/`updateFrontList`、`ThrowFailedAtThisConfiguration`、
-     `halfspaceIntersectTolerance`、`planeIntersectTolerance`）；
-  4. 删除 5 处未被使用的 include（`collision_geometry.h` 里的 `motion_base.h`、
-     `distance_func_matrix-inl.h` 里的 4 个 conservative advancement 头）。
-- 因此**上游的已知 bug 与未初始化行为一并保留**，例如：
-  `distance-inl.h` 回退分支误用 `std::numeric_limits<S>::min()`（应为 `lowest()`）、
-  `RSS::operator+` 中 `bv.axis.col(2)` 取自 `this->axis`、
-  `kIOS` 自由函数 `translate` 丢弃 obb 平移、
-  `MeshDistanceTraversalNode` 从默认构造的 request 读 `rel_err/abs_err`（恒 0）、
-  `boxBoxIntersect` 对 `*contacts_` 是赋值而非追加、
-  `sphereTriangleDistance(dist,p1,p2)` 穿透时不写 `*dist`，
-  以及 `OBB()/RSS()/kIOS/Triangle()/Contact()/DistanceResult::nearest_points` 等
-  未初始化成员。数值结果因此与上游 FCL 0.7.0 一致。
-- `fcl/config.h`、`fcl/export.h` 为 CMake 生成物，用静态版本替代
-  （`FCL_HAVE_OCTOMAP=0`、`FCL_HAVE_SSE=0`、`FCL_ENABLE_PROFILING=0`，
-  均可由外部 `-D` 覆盖）。
+保留下来的代码除以下四类外与上游逐字节相同：每文件一行来源注释、删除
+`extern template`、6 处从 `src/*.cpp` 内联进头文件的非模板定义、以及
+`BVH_model-inl.h` 补的一行 `#include "fcl/math/bv/utility.h"`（上游靠传递
+包含拿到 `fit<BV>()`，本提取删掉了中间文件，必须显式写出）。
 
+另有 4 个文件做了删减（只删不改），每个文件顶部注明了删除内容与原因：
+`distance_func_matrix-inl.h`、`distance-inl.h`、`collision_node.h/-inl.h`、
+`traversal_recurse.h/-inl.h`。
+
+上游的已知 bug 与未初始化行为一律保留。**与系统 libfcl 0.7.0 的 640 组
+随机位姿对拍结果逐字节完全一致**，这是保真度最直接的证据。
+
+两处行为差异，均为 mesh × mesh 场景下的必然结果，不影响数值：
+`DistanceRequest::gjk_solver_type` 与 `enable_signed_distance` 失效
+（前者本就不参与计算，后者的 `collide()` 回退在 mesh × mesh 下是死代码，
+因为 `triDistance` 重叠时精确返回 0，永不为负）。

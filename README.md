@@ -1,33 +1,37 @@
 # fcl_distance
 
-**FCL 0.7.0 `fcl::distance` 的 header-only 独立提取。**
+**FCL 0.7.0 中 mesh × mesh 距离计算的 header-only 独立提取。**
 
 从 [FCL (Flexible Collision Library)](https://github.com/flexible-collision-library/fcl)
-0.7.0（BSD-3-Clause，master@e5efcc4）中抽出 `fcl::distance` 的完整引用闭包
-（含它内部需要的 `fcl::collide` 回退链路），做成**纯头文件**：源码拷到别处，
-`#include` 即可用，**不需要编译 FCL、不需要 CMake 配置步骤**。
+0.7.0（BSD-3-Clause，master@e5efcc4）中抽出 `fcl::distance` 在**网格对网格**这一
+场景下的完整引用闭包，做成纯头文件：源码拷到别处，`#include` 即可用，
+**不需要编译 FCL、不需要 CMake 配置步骤**。
 
-接口与上游 FCL 完全一致（`fcl::` 命名空间下的类型、函数签名、默认参数、枚举值
-逐字保留）。
+`fcl::distance` 的调用接口与上游完全一致。
 
 ## 依赖
 
-与上游 FCL 相同，只有两个，需由宿主工程提供：
+**只有 Eigen 3，且只需要头文件路径。**
 
-| 依赖 | 用途 | 编译/链接 |
-|---|---|---|
-| **Eigen 3** | 数学类型（`fcl::Vector3<S>` 等均是 Eigen 别名） | 仅需头文件路径 |
-| **libccd** | `GST_LIBCCD` 求解器（FCL 默认）的底层几何例程 | 需要 `-lccd` 链接 |
-
-不需要 octomap（本提取按 `FCL_HAVE_OCTOMAP=0` 构建，等价于上游
-`-DFCL_WITH_OCTOMAP=OFF`）。
+上游 FCL 还依赖 libccd，那是 `GST_LIBCCD` 求解器的底座。mesh × mesh 距离
+根本不走求解器——`BVHDistance()` 拿到 solver 指针后第一行就是 `FCL_UNUSED(nsolver)`，
+叶子测试直接调用解析的 `TriangleDistance<S>::triDistance`。所以 GJK / EPA / libccd
+整块都不在本提取里，**不需要 `-lccd`**。
 
 ## 使用
 
 ```cpp
-#include "fcl/narrowphase/distance.h"   // 或 #include "fcl/fcl.h"
+#include "fcl/narrowphase/distance.h"
+#include "fcl/geometry/bvh/BVH_model.h"
 
-fcl::Sphere<double> s1(1.0), s2(1.0);
+// 建网格（OBBRSS 通常是 mesh 距离最快的包围体）
+fcl::BVHModel<fcl::OBBRSS<double>> m1, m2;
+m1.beginModel();
+m1.addSubModel(vertices1, triangles1);   // std::vector<fcl::Vector3d>, std::vector<fcl::Triangle>
+m1.endModel();
+m1.computeLocalAABB();
+// m2 同理
+
 fcl::Transform3d tf1 = fcl::Transform3d::Identity();
 fcl::Transform3d tf2 = fcl::Transform3d::Identity();
 tf2.translation() = fcl::Vector3d(3, 0, 0);
@@ -36,92 +40,95 @@ fcl::DistanceRequest<double> request;
 request.enable_nearest_points = true;
 fcl::DistanceResult<double> result;
 
-double d = fcl::distance(&s1, tf1, &s2, tf2, request, result);
-// d == 1.0；result.nearest_points[0/1] 为两物体上的最近点
+double d = fcl::distance(&m1, tf1, &m2, tf2, request, result);
+// d = 两网格间最小距离；result.nearest_points[0/1] 为各自表面上的最近点
+// result.b1 / result.b2 为对应的三角形索引
 ```
 
 编译：
 
 ```bash
-g++ -std=c++11 -O2 -Ifcl_distance/include -I/usr/include/eigen3 your.cpp -lccd
+g++ -std=c++11 -O2 -Ifcl_distance/include -I/usr/include/eigen3 your.cpp
 ```
 
 ## 覆盖范围
 
-- `fcl::distance`：`CollisionObject` 与 `CollisionGeometry` 两组入口
-- 9 种基本形状 `Box / Sphere / Ellipsoid / Capsule / Cone / Cylinder /
-  Convex / Plane / Halfspace`（+ `TriangleP`），全部两两组合
-- 网格 `BVHModel<BV>`：`AABB / OBB / RSS / OBBRSS / kIOS / KDOP<16|18|24>`；
-  网格×形状、网格×网格距离
-- 两种求解器：`GST_LIBCCD`（默认）与 `GST_INDEP`
-- 符号距离（`enable_signed_distance`）及其内部的 `fcl::collide` 回退链路
-  ——因此 `fcl::collide` 也完整可用
-- 最近点输出（`enable_nearest_points`）
+- `fcl::distance` 的两组入口：`CollisionGeometry*` 与 `CollisionObject*`
+- 网格 `BVHModel<BV>`，包围体支持 `AABB / RSS / kIOS / OBBRSS`
+  （即上游为 mesh × mesh 注册的全部 4 种）
+- 最近点输出（`enable_nearest_points`）与最近三角形索引（`result.b1/b2`）
+- BVH 的构建、拟合（`BVFitter`）、划分（`BVSplitter`）、refit
 
-**不含**（不属于 `fcl::distance` 闭包）：broadphase、continuous collision /
-conservative advancement、octomap/OcTree、`fcl::common::{Profiler,Time}`。
+**不含**：形状（Box/Sphere/…）、mesh × 形状、GJK/EPA 求解器、碰撞检测
+（`fcl::collide`）、broadphase、连续碰撞、octree。
 
-## 与上游的差异
+两点行为差异，都是 mesh × mesh 场景下的必然结果：
 
-`tools/verify_against_upstream.py` 会逐文件 diff 并给每个差异分类，运行结果：
+- `DistanceRequest::gjk_solver_type` 无效——mesh × mesh 本来就不用求解器
+- `DistanceRequest::enable_signed_distance` 无效——上游用 `collide()` 回退来算
+  负距离，但 `triDistance` 永不返回负值（重叠时精确返回 0），该回退在 mesh × mesh
+  下是死代码。重叠网格返回 0，与上游默认行为一致。
 
-```
-shipped headers        : 177
-change categories:
-  provenance marker                   174 hunks   每个文件开头一行来源注释
-  extern template removed             245 hunks   header-only 必需（原本由 libfcl 提供实例化）
-  definition inlined from .cpp          6 hunks   见下
-  pruned-subsystem include removed      5 hunks   motion_base.h ×1、conservative advancement ×4（均为未使用的 include）
-OK: every difference from upstream falls into an expected category.
-```
+## 验证
 
-即：**除上述四类之外，与上游逐字节相同**——包括上游已知的 bug 与未初始化行为，
-一律保留，以保证数值结果一致。
+在 Ubuntu 24.04 / gcc 13.3 / Eigen 3.4.0 上实测：
 
-从 `src/*.cpp` 内联进头文件的 6 处非模板定义（原本编进 libfcl）：
-
-| 头文件 | 来自 |
+| 检查 | 结果 |
 |---|---|
-| `math/triangle.h` | `src/math/triangle.cpp`（`Triangle` 的 5 个方法）|
-| `geometry/bvh/BV_node_base.h` | `src/geometry/bvh/BV_node_base.cpp`（4 个方法）|
-| `geometry/bvh/detail/BVH_front.h` | `src/geometry/bvh/detail/BVH_front.cpp` |
-| `narrowphase/detail/failed_at_this_configuration.h` | 同名 `.cpp`（`ThrowFailedAtThisConfiguration`）|
-| `narrowphase/detail/primitive_shape_algorithm/halfspace.h` | 同名 `.cpp`（`halfspaceIntersectTolerance` 的两个特化）|
-| `narrowphase/detail/primitive_shape_algorithm/plane.h` | 同名 `.cpp`（`planeIntersectTolerance` 的两个特化）|
+| 编译 + 链接（无 `-lccd`） | **通过**，5 秒 |
+| `tests/test_mesh_distance.cpp` 黄金值 | **60 项检查，0 失败** |
+| 四种包围体结果互相一致 | **通过**（AABB/RSS/kIOS/OBBRSS 同值） |
+| 与上游 libfcl 0.7.0 数值对拍 | **640 组查询逐字节完全一致** |
+
+对拍方式：`tools/crosscheck_dump.cpp` 同一份源码分别链接系统 libfcl 0.7.0 和本
+提取，跑 200 组随机位姿（立方体网格 12 面 + 环形网格 128 面，分离与穿透各半），
+输出距离和最近点，`cmp` 逐字节比较。
+
+```bash
+g++ -std=c++14 -O2 -DCROSSCHECK_UPSTREAM tools/crosscheck_dump.cpp -o up -lfcl -lccd && ./up > up.txt
+g++ -std=c++14 -O2 -Iinclude tools/crosscheck_dump.cpp -o pt && ./pt > pt.txt
+cmp up.txt pt.txt && echo IDENTICAL
+```
+
+## 与上游代码的关系
+
+62 个头文件中，59 个来自上游 FCL，逐字未改（除每个文件开头一行来源注释、
+删除 `extern template` 声明、以及 6 处从 `src/*.cpp` 内联进头文件的非模板定义）。
+
+有 4 个文件为服务本场景做了**删减**，每个文件顶部都写明了删了什么、为什么：
+
+| 文件 | 改动 |
+|---|---|
+| `narrowphase/detail/distance_func_matrix-inl.h` | 上游注册 192 个分发项；本提取只保留 mesh × mesh 的 4 项（`BV_AABB/BV_RSS/BV_kIOS/BV_OBBRSS` 对角线），其余整函数删除 |
+| `narrowphase/distance-inl.h` | 删掉 `collide()` 符号距离回退（mesh × mesh 下是死代码）；双求解器分支合并为 `detail::MeshDistanceSolver` 占位类型 |
+| `narrowphase/detail/traversal/collision_node.h/-inl.h` | 只保留 `distance(node)` 驱动，删掉 `collide` / `selfCollide` / `collide2` |
+| `narrowphase/detail/traversal/traversal_recurse.h/-inl.h` | 只保留 `distanceRecurse` / `distanceQueueRecurse` 及其 `BVT/BVTQ` 辅助结构 |
+
+另有一处**补充**：`geometry/bvh/BVH_model-inl.h` 加了一行
+`#include "fcl/math/bv/utility.h"`。上游该文件调用 `fit<BV>()` 却没有 include 其
+声明——在完整 FCL 树里这个头总会传递地到达，本提取删掉了那些中间文件，所以必须显式写出。
+
+保留的代码里，**上游已知的 bug 与未初始化行为一律未改**（如 `RSS::operator+` 中
+`bv.axis.col(2)` 取自 `this->axis`、`kIOS::encloseSphere` 硬编码 `float`、
+`MeshDistanceTraversalNode` 从默认构造的 request 读 `rel_err/abs_err`（恒 0）、
+`OBB()/RSS()/kIOS/Triangle()` 等未初始化成员），因此数值结果与上游一致——
+640 组对拍逐字节相同即是证明。
 
 `fcl/config.h` 与 `fcl/export.h` 是 CMake 生成物，本仓库用静态版本替代。
 
 ## 目录
 
 ```
-include/fcl/**            与上游同路径的头文件树（177 个头，含 -inl.h）
-docs/REFERENCE_CHAIN.md   fcl::distance 完整引用链路分析（调用图 + 文件清单）
-tests/                    黄金值测试 + 全实例化编译测试
+include/fcl/**            头文件树，62 个（含 -inl.h）
+docs/REFERENCE_CHAIN.md   fcl::distance 引用链路分析
+tests/test_mesh_distance.cpp     黄金值测试
 tools/port_from_upstream.py      从上游重新生成本树
 tools/verify_against_upstream.py 逐文件 diff 分类校验
 tools/crosscheck_dump.cpp        与原版 FCL 数值对拍采样器
 tools/crosscheck_compare.py      对拍结果比对
 ```
 
-## 测试
-
-```bash
-g++ -std=c++11 -O2 -Iinclude -I/usr/include/eigen3 tests/test_fcl_distance.cpp -lccd -o test_fcl_distance && ./test_fcl_distance
-```
-
-```bash
-g++ -std=c++11 -fsyntax-only -Iinclude -I/usr/include/eigen3 tests/instantiate_all.cpp
-```
-
-与原版 FCL 数值对拍（需要能同时链接原版 libfcl 的环境）：
-
-```bash
-g++ -std=c++11 -O2 -DCROSSCHECK_UPSTREAM -I/usr/include/eigen3 tools/crosscheck_dump.cpp -lfcl -lccd -o dump_upstream && ./dump_upstream > upstream.txt
-g++ -std=c++11 -O2 -Iinclude -I/usr/include/eigen3 tools/crosscheck_dump.cpp -lccd -o dump_port && ./dump_port > port.txt
-python tools/crosscheck_compare.py upstream.txt port.txt
-```
-
 ## 许可
 
-BSD-3-Clause，与上游 FCL 相同；每个文件保留原始版权声明。
-本仓库是独立提取，非 FCL 官方项目。
+BSD-3-Clause，与上游 FCL 相同；每个文件保留原始版权声明，根目录 `LICENSE`
+为上游许可全文。本仓库是独立提取，非 FCL 官方项目。

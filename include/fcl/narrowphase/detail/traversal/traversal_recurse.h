@@ -35,15 +35,20 @@
 
 /** @author Jia Pan */
 
-// fcl_distance: header-only extraction of FCL 0.7.0 include/fcl/narrowphase/detail/traversal/traversal_recurse.h
+// fcl_distance (mesh-mesh only): reduced from FCL 0.7.0
+// include/fcl/narrowphase/detail/traversal/traversal_recurse.h.
+//
+// Upstream also declares collisionRecurse (three overloads),
+// selfCollisionRecurse and propagateBVHFrontListCollisionRecurse here.  A
+// mesh-vs-mesh distance query calls none of them, and their signatures are
+// what dragged the collision traversal nodes, Intersect<S> and PolySolver<S>
+// into this extraction, so only the distance recursions are kept.
 
-#ifndef FCL_TRAVERSAL_RECURSE_H
-#define FCL_TRAVERSAL_RECURSE_H
+#ifndef FCL_TRAVERSAL_TRAVERSALRECURSE_H
+#define FCL_TRAVERSAL_TRAVERSALRECURSE_H
 
 #include "fcl/geometry/bvh/detail/BVH_front.h"
 #include "fcl/narrowphase/detail/traversal/traversal_node_base.h"
-#include "fcl/narrowphase/detail/traversal/collision/collision_traversal_node_base.h"
-#include "fcl/narrowphase/detail/traversal/collision/mesh_collision_traversal_node.h"
 #include "fcl/narrowphase/detail/traversal/distance/distance_traversal_node_base.h"
 
 namespace fcl
@@ -51,26 +56,6 @@ namespace fcl
 
 namespace detail
 {
-
-/// @brief Recurse function for collision
-template <typename S>
-FCL_EXPORT
-void collisionRecurse(CollisionTraversalNodeBase<S>* node, int b1, int b2, BVHFrontList* front_list);
-
-/// @brief Recurse function for collision, specialized for OBB type
-template <typename S>
-FCL_EXPORT
-void collisionRecurse(MeshCollisionTraversalNodeOBB<S>* node, int b1, int b2, const Matrix3<S>& R, const Vector3<S>& T, BVHFrontList* front_list);
-
-/// @brief Recurse function for collision, specialized for RSS type
-template <typename S>
-FCL_EXPORT
-void collisionRecurse(MeshCollisionTraversalNodeRSS<S>* node, int b1, int b2, const Matrix3<S>& R, const Vector3<S>& T, BVHFrontList* front_list);
-
-/// @brief Recurse function for self collision. Make sure node is set correctly so that the first and second tree are the same
-template <typename S>
-FCL_EXPORT
-void selfCollisionRecurse(CollisionTraversalNodeBase<S>* node, int b, BVHFrontList* front_list);
 
 /// @brief Recurse function for distance
 template <typename S>
@@ -81,11 +66,6 @@ void distanceRecurse(DistanceTraversalNodeBase<S>* node, int b1, int b2, BVHFron
 template <typename S>
 FCL_EXPORT
 void distanceQueueRecurse(DistanceTraversalNodeBase<S>* node, int b1, int b2, BVHFrontList* front_list, int qsize);
-
-/// @brief Recurse function for front list propagation
-template <typename S>
-FCL_EXPORT
-void propagateBVHFrontListCollisionRecurse(CollisionTraversalNodeBase<S>* node, BVHFrontList* front_list);
 
 } // namespace detail
 } // namespace fcl

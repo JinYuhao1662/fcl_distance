@@ -35,48 +35,32 @@
 
 /** @author Jia Pan */
 
-// fcl_distance: header-only extraction of FCL 0.7.0 include/fcl/narrowphase/detail/traversal/collision_node.h
+// fcl_distance (mesh-mesh only): reduced from FCL 0.7.0
+// include/fcl/narrowphase/detail/traversal/collision_node.h.
+//
+// Upstream also declares collide(), selfCollide() and the two collide2()
+// overloads here.  Nothing in a mesh-vs-mesh distance query calls them, and
+// keeping them would pull the entire collision traversal family (and
+// Intersect<S>, and PolySolver<S>) back into the extraction, so only the
+// distance driver is kept.  Its body is unchanged.
 
-#ifndef FCL_COLLISION_NODE_H
-#define FCL_COLLISION_NODE_H
+#ifndef FCL_TRAVERSAL_COLLISIONNODE_H
+#define FCL_TRAVERSAL_COLLISIONNODE_H
 
 #include "fcl/geometry/bvh/detail/BVH_front.h"
 #include "fcl/narrowphase/detail/traversal/traversal_recurse.h"
-#include "fcl/narrowphase/detail/traversal/collision/collision_traversal_node_base.h"
-#include "fcl/narrowphase/detail/traversal/collision/mesh_collision_traversal_node.h"
 #include "fcl/narrowphase/detail/traversal/distance/distance_traversal_node_base.h"
 
-/// @brief collision and distance function on traversal nodes. these functions provide a higher level abstraction for collision functions provided in collision_func_matrix
 namespace fcl
 {
 
 namespace detail
 {
 
-/// @brief collision on collision traversal node; can use front list to accelerate
-template <typename S>
-FCL_EXPORT
-void collide(CollisionTraversalNodeBase<S>* node, BVHFrontList* front_list = nullptr);
-
-/// @brief self collision on collision traversal node; can use front list to accelerate
-template <typename S>
-FCL_EXPORT
-void selfCollide(CollisionTraversalNodeBase<S>* node, BVHFrontList* front_list = nullptr);
-
-/// @brief distance computation on distance traversal node; can use front list to accelerate
+/// @brief distance recursion on BVH data structure
 template <typename S>
 FCL_EXPORT
 void distance(DistanceTraversalNodeBase<S>* node, BVHFrontList* front_list = nullptr, int qsize = 2);
-
-/// @brief special collision on OBB traversal node
-template <typename S>
-FCL_EXPORT
-void collide2(MeshCollisionTraversalNodeOBB<S>* node, BVHFrontList* front_list = nullptr);
-
-/// @brief special collision on RSS traversal node
-template <typename S>
-FCL_EXPORT
-void collide2(MeshCollisionTraversalNodeRSS<S>* node, BVHFrontList* front_list = nullptr);
 
 } // namespace detail
 } // namespace fcl

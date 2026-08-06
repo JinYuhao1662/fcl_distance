@@ -1,27 +1,30 @@
-// fcl_distance — cross-validation sampler.
+// fcl_distance — cross-validation sampler (mesh vs mesh).
 //
-// Build this file TWICE: once against real FCL 0.7.0 (define
-// CROSSCHECK_UPSTREAM, link fcl + ccd, needs Eigen) and once against this
-// port (no defines, just -Iinclude).  Each build prints one line per query:
-//   case_id solver d min_distance p1x p1y p1z p2x p2y p2z
-// Diff the two outputs (tools/crosscheck_compare.py) to quantify agreement.
+// Build this file TWICE and diff the output:
+//   upstream : g++ -DCROSSCHECK_UPSTREAM ... -lfcl -lccd      (system FCL 0.7.0)
+//   port     : g++ -Iinclude ...                              (this extraction)
 //
-// The RNG is a fixed-seed LCG so both builds enumerate identical cases.
+// Each build prints one line per query:
+//   case_id bv d min_distance p1x p1y p1z p2x p2y p2z
+//
+// The RNG is a fixed-seed LCG, so both builds enumerate identical cases.
 
 #ifdef CROSSCHECK_UPSTREAM
-#include "fcl/fcl.h"
 #include "fcl/narrowphase/distance.h"
+#include "fcl/geometry/bvh/BVH_model.h"
 #else
-#include "fcl/fcl.h"
+#include "fcl/narrowphase/distance.h"
+#include "fcl/geometry/bvh/BVH_model.h"
 #endif
 
+#include <cmath>
 #include <cstdio>
 #include <memory>
 #include <vector>
 
 using S = double;
 
-// Deterministic LCG (identical sequence on every platform/compiler).
+// Deterministic LCG (identical sequence on every platform and compiler).
 static unsigned long long g_state = 88172645463325252ull;
 static double urand()  // in [-1, 1)
 {
@@ -46,33 +49,6 @@ static fcl::Transform3<S> randomTransform(double span)
   tf.translation() =
       fcl::Vector3<S>(urand() * span, urand() * span, urand() * span);
   return tf;
-}
-
-static void report(int case_id, int solver,
-                   const fcl::DistanceResult<S>& res, double d)
-{
-  std::printf("%d %d %.17g %.17g %.17g %.17g %.17g %.17g %.17g %.17g\n",
-              case_id, solver, d, res.min_distance,
-              res.nearest_points[0][0], res.nearest_points[0][1],
-              res.nearest_points[0][2], res.nearest_points[1][0],
-              res.nearest_points[1][1], res.nearest_points[1][2]);
-}
-
-static void query(int case_id, const fcl::CollisionGeometry<S>* g1,
-                  const fcl::Transform3<S>& tf1,
-                  const fcl::CollisionGeometry<S>* g2,
-                  const fcl::Transform3<S>& tf2)
-{
-  const fcl::GJKSolverType solvers[2] = {fcl::GST_LIBCCD, fcl::GST_INDEP};
-  for (int si = 0; si < 2; ++si)
-  {
-    fcl::DistanceRequest<S> req;
-    req.gjk_solver_type = solvers[si];
-    req.enable_nearest_points = true;
-    fcl::DistanceResult<S> res;
-    double d = fcl::distance(g1, tf1, g2, tf2, req, res);
-    report(case_id, si, res, d);
-  }
 }
 
 template <typename BV>
@@ -102,51 +78,104 @@ static std::shared_ptr<fcl::BVHModel<BV>> boxMesh(double hx, double hy,
   return model;
 }
 
-int main()
+/// A coarse two-ring "torus" mesh, to exercise deeper BVH trees than a box.
+template <typename BV>
+static std::shared_ptr<fcl::BVHModel<BV>> ringMesh(int seg, double R, double r)
 {
-  int case_id = 0;
-
-  // --- primitive pairs, random poses (separated to overlapping) ---
-  fcl::Box<S> box(1.2, 0.8, 1.7);
-  fcl::Sphere<S> sphere(0.9);
-  fcl::Capsule<S> capsule(0.4, 1.5);
-  fcl::Cylinder<S> cylinder(0.6, 1.1);
-  fcl::Cone<S> cone(0.7, 1.3);
-  fcl::Ellipsoid<S> ellipsoid(0.5, 0.9, 1.4);
-
-  const fcl::CollisionGeometry<S>* shapes[] = {&box,      &sphere,
-                                               &capsule,  &cylinder,
-                                               &cone,     &ellipsoid};
-  const int nshapes = 6;
-
-  for (int i = 0; i < nshapes; ++i)
+  auto model = std::make_shared<fcl::BVHModel<BV>>();
+  std::vector<fcl::Vector3<S>> v;
+  const double kPi = 3.14159265358979323846;
+  for (int i = 0; i < seg; ++i)
   {
-    for (int j = i; j < nshapes; ++j)
+    const double a = 2.0 * kPi * i / seg;
+    for (int j = 0; j < 4; ++j)
     {
-      for (int k = 0; k < 40; ++k)
-      {
-        // span shrinks so later cases overlap
-        double span = (k < 20) ? 4.0 : 1.0;
-        fcl::Transform3<S> tf1 = randomTransform(span);
-        fcl::Transform3<S> tf2 = randomTransform(span);
-        query(case_id++, shapes[i], tf1, shapes[j], tf2);
-      }
+      const double b = 2.0 * kPi * j / 4;
+      v.push_back(fcl::Vector3<S>((R + r * std::cos(b)) * std::cos(a),
+                                  (R + r * std::cos(b)) * std::sin(a),
+                                  r * std::sin(b)));
     }
   }
-
-  // --- mesh vs shape, mesh vs mesh ---
-  auto mesh_obbrss = boxMesh<fcl::OBBRSS<S>>(0.6, 0.6, 0.6);
-  auto mesh_rss = boxMesh<fcl::RSS<S>>(0.6, 0.6, 0.6);
-  auto mesh2_obbrss = boxMesh<fcl::OBBRSS<S>>(0.4, 0.7, 0.5);
-
-  for (int k = 0; k < 60; ++k)
+  std::vector<fcl::Triangle> tris;
+  for (int i = 0; i < seg; ++i)
   {
-    double span = (k < 30) ? 4.0 : 1.2;
-    fcl::Transform3<S> tf1 = randomTransform(span);
-    fcl::Transform3<S> tf2 = randomTransform(span);
-    query(case_id++, mesh_obbrss.get(), tf1, &sphere, tf2);
-    query(case_id++, mesh_rss.get(), tf1, &box, tf2);
-    query(case_id++, mesh_obbrss.get(), tf1, mesh2_obbrss.get(), tf2);
+    for (int j = 0; j < 4; ++j)
+    {
+      const int i2 = (i + 1) % seg, j2 = (j + 1) % 4;
+      const int a = i * 4 + j, b = i2 * 4 + j, c = i2 * 4 + j2, d = i * 4 + j2;
+      tris.push_back(fcl::Triangle(a, b, c));
+      tris.push_back(fcl::Triangle(a, c, d));
+    }
+  }
+  model->beginModel();
+  model->addSubModel(v, tris);
+  model->endModel();
+  model->computeLocalAABB();
+  return model;
+}
+
+static void report(int case_id, int bv, const fcl::DistanceResult<S>& res,
+                   double d)
+{
+  std::printf("%d %d %.17g %.17g %.17g %.17g %.17g %.17g %.17g %.17g\n",
+              case_id, bv, d, res.min_distance,
+              res.nearest_points[0][0], res.nearest_points[0][1],
+              res.nearest_points[0][2], res.nearest_points[1][0],
+              res.nearest_points[1][1], res.nearest_points[1][2]);
+}
+
+template <typename BV>
+static void query(int case_id, int bv_id,
+                  const fcl::BVHModel<BV>* m1, const fcl::Transform3<S>& tf1,
+                  const fcl::BVHModel<BV>* m2, const fcl::Transform3<S>& tf2)
+{
+  fcl::DistanceRequest<S> req;
+  req.enable_nearest_points = true;
+  fcl::DistanceResult<S> res;
+  double d = fcl::distance(m1, tf1, m2, tf2, req, res);
+  report(case_id, bv_id, res, d);
+}
+
+int main()
+{
+  auto box_a_aabb = boxMesh<fcl::AABB<S>>(0.6, 0.6, 0.6);
+  auto box_b_aabb = boxMesh<fcl::AABB<S>>(0.4, 0.7, 0.5);
+  auto box_a_rss = boxMesh<fcl::RSS<S>>(0.6, 0.6, 0.6);
+  auto box_b_rss = boxMesh<fcl::RSS<S>>(0.4, 0.7, 0.5);
+  auto box_a_kios = boxMesh<fcl::kIOS<S>>(0.6, 0.6, 0.6);
+  auto box_b_kios = boxMesh<fcl::kIOS<S>>(0.4, 0.7, 0.5);
+  auto box_a_obbrss = boxMesh<fcl::OBBRSS<S>>(0.6, 0.6, 0.6);
+  auto box_b_obbrss = boxMesh<fcl::OBBRSS<S>>(0.4, 0.7, 0.5);
+
+  auto ring_a = ringMesh<fcl::OBBRSS<S>>(16, 1.0, 0.3);
+  auto ring_b = ringMesh<fcl::OBBRSS<S>>(16, 0.8, 0.25);
+  auto ring_a_rss = ringMesh<fcl::RSS<S>>(16, 1.0, 0.3);
+  auto ring_b_rss = ringMesh<fcl::RSS<S>>(16, 0.8, 0.25);
+
+  int case_id = 0;
+
+  // Boxes: all four BV types over the same poses (separated then overlapping).
+  for (int k = 0; k < 120; ++k)
+  {
+    const double span = (k < 60) ? 4.0 : 1.2;
+    const fcl::Transform3<S> tf1 = randomTransform(span);
+    const fcl::Transform3<S> tf2 = randomTransform(span);
+    query(case_id, 0, box_a_aabb.get(), tf1, box_b_aabb.get(), tf2);
+    query(case_id, 1, box_a_rss.get(), tf1, box_b_rss.get(), tf2);
+    query(case_id, 2, box_a_kios.get(), tf1, box_b_kios.get(), tf2);
+    query(case_id, 3, box_a_obbrss.get(), tf1, box_b_obbrss.get(), tf2);
+    ++case_id;
+  }
+
+  // Rings: deeper BVH trees, 128 triangles each.
+  for (int k = 0; k < 80; ++k)
+  {
+    const double span = (k < 40) ? 4.0 : 1.5;
+    const fcl::Transform3<S> tf1 = randomTransform(span);
+    const fcl::Transform3<S> tf2 = randomTransform(span);
+    query(case_id, 3, ring_a.get(), tf1, ring_b.get(), tf2);
+    query(case_id, 1, ring_a_rss.get(), tf1, ring_b_rss.get(), tf2);
+    ++case_id;
   }
 
   std::fprintf(stderr, "cases: %d\n", case_id);

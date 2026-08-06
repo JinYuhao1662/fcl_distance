@@ -35,10 +35,13 @@
 
 /** @author Jia Pan */
 
-// fcl_distance: header-only extraction of FCL 0.7.0 include/fcl/narrowphase/detail/traversal/traversal_recurse-inl.h
+// fcl_distance (mesh-mesh only): reduced from FCL 0.7.0
+// include/fcl/narrowphase/detail/traversal/traversal_recurse-inl.h.
+// Only the distance recursions (and the BVT/BVTQ helpers they use) are kept;
+// their bodies are copied verbatim.
 
-#ifndef FCL_TRAVERSAL_RECURSE_INL_H
-#define FCL_TRAVERSAL_RECURSE_INL_H
+#ifndef FCL_TRAVERSAL_TRAVERSALRECURSE_INL_H
+#define FCL_TRAVERSAL_TRAVERSALRECURSE_INL_H
 
 #include "fcl/narrowphase/detail/traversal/traversal_recurse.h"
 
@@ -51,189 +54,6 @@ namespace fcl
 
 namespace detail
 {
-
-//==============================================================================
-//==============================================================================
-//==============================================================================
-//==============================================================================
-//==============================================================================
-//==============================================================================
-//==============================================================================
-//==============================================================================
-template <typename S>
-FCL_EXPORT
-void collisionRecurse(CollisionTraversalNodeBase<S>* node, int b1, int b2, BVHFrontList* front_list)
-{
-  bool l1 = node->isFirstNodeLeaf(b1);
-  bool l2 = node->isSecondNodeLeaf(b2);
-
-  if(l1 && l2)
-  {
-    updateFrontList(front_list, b1, b2);
-
-    if(node->BVTesting(b1, b2)) return;
-
-    node->leafTesting(b1, b2);
-    return;
-  }
-
-  if(node->BVTesting(b1, b2))
-  {
-    updateFrontList(front_list, b1, b2);
-    return;
-  }
-
-  if(node->firstOverSecond(b1, b2))
-  {
-    int c1 = node->getFirstLeftChild(b1);
-    int c2 = node->getFirstRightChild(b1);
-
-    collisionRecurse(node, c1, b2, front_list);
-
-    // early stop is disabled is front_list is used
-    if(node->canStop() && !front_list) return;
-
-    collisionRecurse(node, c2, b2, front_list);
-  }
-  else
-  {
-    int c1 = node->getSecondLeftChild(b2);
-    int c2 = node->getSecondRightChild(b2);
-
-    collisionRecurse(node, b1, c1, front_list);
-
-    // early stop is disabled is front_list is used
-    if(node->canStop() && !front_list) return;
-
-    collisionRecurse(node, b1, c2, front_list);
-  }
-}
-
-//==============================================================================
-template <typename S>
-FCL_EXPORT
-void collisionRecurse(MeshCollisionTraversalNodeOBB<S>* node, int b1, int b2, const Matrix3<S>& R, const Vector3<S>& T, BVHFrontList* front_list)
-{
-  bool l1 = node->isFirstNodeLeaf(b1);
-  bool l2 = node->isSecondNodeLeaf(b2);
-
-  if(l1 && l2)
-  {
-    updateFrontList(front_list, b1, b2);
-
-    if(node->BVTesting(b1, b2, R, T)) return;
-
-    node->leafTesting(b1, b2, R, T);
-    return;
-  }
-
-  if(node->BVTesting(b1, b2, R, T))
-  {
-    updateFrontList(front_list, b1, b2);
-    return;
-  }
-
-  Vector3<S> temp;
-
-  if(node->firstOverSecond(b1, b2))
-  {
-    int c1 = node->getFirstLeftChild(b1);
-    int c2 = node->getFirstRightChild(b1);
-
-    const OBB<S>& bv1 = node->model1->getBV(c1).bv;
-
-    Matrix3<S> Rc = R.transpose() * bv1.axis;
-    temp = T - bv1.To;
-    Vector3<S> Tc = temp.transpose() * bv1.axis;
-
-    collisionRecurse(node, c1, b2, Rc, Tc, front_list);
-
-    // early stop is disabled is front_list is used
-    if(node->canStop() && !front_list) return;
-
-    const OBB<S>& bv2 = node->model1->getBV(c2).bv;
-
-    Rc.noalias() = R.transpose() * bv2.axis;
-    temp = T - bv2.To;
-    Tc[0] = bv2.axis.col(0).dot(temp);
-    Tc[1] = bv2.axis.col(1).dot(temp);
-    Tc[2] = bv2.axis.col(2).dot(temp);
-
-    collisionRecurse(node, c2, b2, Rc, Tc, front_list);
-  }
-  else
-  {
-    int c1 = node->getSecondLeftChild(b2);
-    int c2 = node->getSecondRightChild(b2);
-
-    const OBB<S>& bv1 = node->model2->getBV(c1).bv;
-    Matrix3<S> Rc;
-    temp.noalias() = R * bv1.axis.col(0);
-    Rc(0, 0) = temp[0]; Rc(1, 0) = temp[1]; Rc(2, 0) = temp[2];
-    temp.noalias() = R * bv1.axis.col(1);
-    Rc(0, 1) = temp[0]; Rc(1, 1) = temp[1]; Rc(2, 1) = temp[2];
-    temp.noalias() = R * bv1.axis.col(2);
-    Rc(0, 2) = temp[0]; Rc(1, 2) = temp[1]; Rc(2, 2) = temp[2];
-    Vector3<S> Tc = R * bv1.To + T;
-
-    collisionRecurse(node, b1, c1, Rc, Tc, front_list);
-
-    // early stop is disabled is front_list is used
-    if(node->canStop() && !front_list) return;
-
-    const OBB<S>& bv2 = node->model2->getBV(c2).bv;
-    temp.noalias() = R * bv2.axis.col(0);
-    Rc(0, 0) = temp[0]; Rc(1, 0) = temp[1]; Rc(2, 0) = temp[2];
-    temp.noalias() = R * bv2.axis.col(1);
-    Rc(0, 1) = temp[0]; Rc(1, 1) = temp[1]; Rc(2, 1) = temp[2];
-    temp.noalias() = R * bv2.axis.col(2);
-    Rc(0, 2) = temp[0]; Rc(1, 2) = temp[1]; Rc(2, 2) = temp[2];
-    Tc = T;
-    Tc.noalias() += R * bv2.To;
-
-    collisionRecurse(node, b1, c2, Rc, Tc, front_list);
-  }
-}
-
-//==============================================================================
-template <typename S>
-FCL_EXPORT
-void collisionRecurse(MeshCollisionTraversalNodeRSS<S>* node, int b1, int b2, const Matrix3<S>& R, const Vector3<S>& T, BVHFrontList* front_list)
-{
-  FCL_UNUSED(node);
-  FCL_UNUSED(b1);
-  FCL_UNUSED(b2);
-  FCL_UNUSED(R);
-  FCL_UNUSED(T);
-  FCL_UNUSED(front_list);
-
-  // Do nothing
-}
-
-//==============================================================================
-/** Recurse function for self collision
- * Make sure node is set correctly so that the first and second tree are the same
- */
-template <typename S>
-FCL_EXPORT
-void selfCollisionRecurse(CollisionTraversalNodeBase<S>* node, int b, BVHFrontList* front_list)
-{
-  bool l = node->isFirstNodeLeaf(b);
-
-  if(l) return;
-
-  int c1 = node->getFirstLeftChild(b);
-  int c2 = node->getFirstRightChild(b);
-
-  selfCollisionRecurse(node, c1, front_list);
-  if(node->canStop() && !front_list) return;
-
-  selfCollisionRecurse(node, c2, front_list);
-  if(node->canStop() && !front_list) return;
-
-  collisionRecurse(node, c1, c2, front_list);
-}
-
 //==============================================================================
 template <typename S>
 FCL_EXPORT
@@ -437,67 +257,6 @@ void distanceQueueRecurse(DistanceTraversalNodeBase<S>* node, int b1, int b2, BV
         break;
       }
     }
-  }
-}
-
-//==============================================================================
-template <typename S>
-FCL_EXPORT
-void propagateBVHFrontListCollisionRecurse(CollisionTraversalNodeBase<S>* node, BVHFrontList* front_list)
-{
-  BVHFrontList::iterator front_iter;
-  BVHFrontList append;
-  for(front_iter = front_list->begin(); front_iter != front_list->end(); ++front_iter)
-  {
-    int b1 = front_iter->left;
-    int b2 = front_iter->right;
-    bool l1 = node->isFirstNodeLeaf(b1);
-    bool l2 = node->isSecondNodeLeaf(b2);
-
-    if(l1 & l2)
-    {
-      front_iter->valid = false; // the front node is no longer valid, in collideRecurse will add again.
-      collisionRecurse(node, b1, b2, &append);
-    }
-    else
-    {
-      if(!node->BVTesting(b1, b2))
-      {
-        front_iter->valid = false;
-
-        if(node->firstOverSecond(b1, b2))
-        {
-          int c1 = node->getFirstLeftChild(b1);
-          int c2 = node->getFirstRightChild(b1);
-
-          collisionRecurse(node, c1, b2, front_list);
-          collisionRecurse(node, c2, b2, front_list);
-        }
-        else
-        {
-          int c1 = node->getSecondLeftChild(b2);
-          int c2 = node->getSecondRightChild(b2);
-
-          collisionRecurse(node, b1, c1, front_list);
-          collisionRecurse(node, b1, c2, front_list);
-        }
-      }
-    }
-  }
-
-
-  // clean the old front list (remove invalid node)
-  for(front_iter = front_list->begin(); front_iter != front_list->end();)
-  {
-    if(!front_iter->valid)
-      front_iter = front_list->erase(front_iter);
-    else
-      ++front_iter;
-  }
-
-  for(front_iter = append.begin(); front_iter != append.end(); ++front_iter)
-  {
-    front_list->push_back(*front_iter);
   }
 }
 
