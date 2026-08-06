@@ -46,13 +46,6 @@ double d = fcl::distance(&s1, tf1, &s2, tf2, request, result);
 g++ -std=c++11 -O2 -Ifcl_distance/include -I/usr/include/eigen3 your.cpp -lccd
 ```
 
-单头版本（`tools/amalgamate.py` 生成，把整棵头文件树摊平成一个文件，Eigen 与
-libccd 仍作为外部 `#include`）：
-
-```cpp
-#include "fcl_distance.hpp"
-```
-
 ## 覆盖范围
 
 - `fcl::distance`：`CollisionObject` 与 `CollisionGeometry` 两组入口
@@ -102,12 +95,10 @@ OK: every difference from upstream falls into an expected category.
 
 ```
 include/fcl/**            与上游同路径的头文件树（177 个头，含 -inl.h）
-single_include/           单头产物
 docs/REFERENCE_CHAIN.md   fcl::distance 完整引用链路分析（调用图 + 文件清单）
 tests/                    黄金值测试 + 全实例化编译测试
 tools/port_from_upstream.py      从上游重新生成本树
 tools/verify_against_upstream.py 逐文件 diff 分类校验
-tools/amalgamate.py              生成单头
 tools/crosscheck_dump.cpp        与原版 FCL 数值对拍采样器
 tools/crosscheck_compare.py      对拍结果比对
 ```
