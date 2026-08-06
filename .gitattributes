@@ -1,0 +1,7 @@
+# Keep the extracted headers byte-identical to upstream FCL on every platform:
+# tools/verify_against_upstream.py diffs against D:\dev\fcl, and CRLF churn
+# would make that comparison meaningless.
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
