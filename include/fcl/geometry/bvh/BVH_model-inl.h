@@ -1237,35 +1237,8 @@ struct GetNodeTypeImpl<OBBRSS<S>>
   }
 };
 
-//==============================================================================
-template <typename S>
-struct GetNodeTypeImpl<KDOP<S, 16>>
-{
-  static NODE_TYPE run()
-  {
-    return BV_KDOP16;
-  }
-};
 
-//==============================================================================
-template <typename S>
-struct GetNodeTypeImpl<KDOP<S, 18>>
-{
-  static NODE_TYPE run()
-  {
-    return BV_KDOP18;
-  }
-};
 
-//==============================================================================
-template <typename S>
-struct GetNodeTypeImpl<KDOP<S, 24>>
-{
-  static NODE_TYPE run()
-  {
-    return BV_KDOP24;
-  }
-};
 
 } // namespace fcl
 

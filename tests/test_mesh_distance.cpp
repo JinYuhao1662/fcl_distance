@@ -244,6 +244,57 @@ void test_bv_agreement()
   CHECK_NEAR(dobb, da, 1e-9);
 }
 
+/// Deforming meshes: beginUpdateModel/endUpdateModel(refit) and
+/// beginReplaceModel/endReplaceModel(refit) take a different path through the
+/// BVH than buildTree() -- refitTree_bottomup() calls the free fit<BV>() and,
+/// for the oriented BVs, BV::operator+ (which is where OBB's merge routines
+/// live).  Without this the refit half of the library looks like dead code.
+template <typename BV>
+void test_refit(const char* name)
+{
+  std::printf("-- %s (refit / update)\n", name);
+
+  fcl::BVHModel<BV> m1, m2;
+  buildBoxMesh(m1, 0.5, 0.5, 0.5);
+  buildBoxMesh(m2, 0.5, 0.5, 0.5);
+
+  const double d0 = run(&m1, at(0, 0, 0), &m2, at(3, 0, 0));
+  CHECK_NEAR(d0, 2.0, 1e-6);
+
+  // Shrink m1 to half size by streaming new vertices through the update path,
+  // then refit bottom-up: the gap should grow by 0.25 on each side.
+  using S = typename BV::S;
+  std::vector<fcl::Vector3<S>> v(8);
+  const double h = 0.25;
+  v[0] = fcl::Vector3<S>(-h, -h, -h);
+  v[1] = fcl::Vector3<S>(+h, -h, -h);
+  v[2] = fcl::Vector3<S>(+h, +h, -h);
+  v[3] = fcl::Vector3<S>(-h, +h, -h);
+  v[4] = fcl::Vector3<S>(-h, -h, +h);
+  v[5] = fcl::Vector3<S>(+h, -h, +h);
+  v[6] = fcl::Vector3<S>(+h, +h, +h);
+  v[7] = fcl::Vector3<S>(-h, +h, +h);
+
+  m1.beginUpdateModel();
+  m1.updateSubModel(v);
+  m1.endUpdateModel(true, true);      // refit, bottom-up
+  m1.computeLocalAABB();
+
+  const double d1 = run(&m1, at(0, 0, 0), &m2, at(3, 0, 0));
+  CHECK_NEAR(d1, 3.0 - 0.25 - 0.5, 1e-6);
+
+  // Same again through the replace path with top-down refit.
+  fcl::BVHModel<BV> m3;
+  buildBoxMesh(m3, 0.5, 0.5, 0.5);
+  m3.beginReplaceModel();
+  m3.replaceSubModel(v);
+  m3.endReplaceModel(true, false);   // refit, top-down
+  m3.computeLocalAABB();
+
+  const double d2 = run(&m3, at(0, 0, 0), &m2, at(3, 0, 0));
+  CHECK_NEAR(d2, 3.0 - 0.25 - 0.5, 1e-6);
+}
+
 /// The CollisionObject-level entry point must agree with the geometry one.
 void test_collision_object()
 {
@@ -274,6 +325,10 @@ int main()
   test_triangles<fcl::OBBRSS<double>>("OBBRSS");
   test_triangles<fcl::RSS<double>>("RSS");
   test_bv_agreement();
+  test_refit<fcl::OBBRSS<double>>("OBBRSS");
+  test_refit<fcl::RSS<double>>("RSS");
+  test_refit<fcl::kIOS<double>>("kIOS");
+  test_refit<fcl::AABB<double>>("AABB");
   test_collision_object();
 
   std::printf("\n%d checks, %d failures\n", g_checks, g_failures);

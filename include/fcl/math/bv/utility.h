@@ -53,10 +53,6 @@ void fit(const Vector3<typename BV::S>* const ps, int n, BV& bv);
 
 /// @brief Convert a bounding volume of type BV1 in configuration tf1 to
 /// bounding volume of type BV2 in identity configuration.
-template <typename BV1, typename BV2>
-FCL_EXPORT
-void convertBV(
-    const BV1& bv1, const Transform3<typename BV1::S>& tf1, BV2& bv2);
 
 } // namespace fcl
 
