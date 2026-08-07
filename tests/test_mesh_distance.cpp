@@ -217,11 +217,9 @@ void test_bv_agreement()
   fcl::BVHModel<fcl::AABB<double>> a1, a2;
   fcl::BVHModel<fcl::RSS<double>> r1, r2;
   fcl::BVHModel<fcl::kIOS<double>> k1, k2;
-  fcl::BVHModel<fcl::OBBRSS<double>> o1, o2;
   buildBoxMesh(a1, 0.6, 0.4, 0.9); buildBoxMesh(a2, 0.3, 0.7, 0.5);
   buildBoxMesh(r1, 0.6, 0.4, 0.9); buildBoxMesh(r2, 0.3, 0.7, 0.5);
   buildBoxMesh(k1, 0.6, 0.4, 0.9); buildBoxMesh(k2, 0.3, 0.7, 0.5);
-  buildBoxMesh(o1, 0.6, 0.4, 0.9); buildBoxMesh(o2, 0.3, 0.7, 0.5);
 
   Transform3d tf1 = Transform3d::Identity();
   tf1.linear() =
@@ -235,34 +233,26 @@ void test_bv_agreement()
   const double da = run(&a1, tf1, &a2, tf2);
   const double dr = run(&r1, tf1, &r2, tf2);
   const double dk = run(&k1, tf1, &k2, tf2);
-  const double dobb = run(&o1, tf1, &o2, tf2);
 
-  std::printf("   AABB=%.12g RSS=%.12g kIOS=%.12g OBBRSS=%.12g\n",
-              da, dr, dk, dobb);
+  std::printf("   AABB=%.12g RSS=%.12g kIOS=%.12g\n", da, dr, dk);
   CHECK_NEAR(dr, da, 1e-9);
   CHECK_NEAR(dk, da, 1e-9);
-  CHECK_NEAR(dobb, da, 1e-9);
 }
 
-/// Deforming meshes: beginUpdateModel/endUpdateModel(refit) and
-/// beginReplaceModel/endReplaceModel(refit) take a different path through the
-/// BVH than buildTree() -- refitTree_bottomup() calls the free fit<BV>() and,
-/// for the oriented BVs, BV::operator+ (which is where OBB's merge routines
-/// live).  Without this the refit half of the library looks like dead code.
+/// Streaming new vertex positions through beginReplaceModel /
+/// replaceSubModel / endReplaceModel.  This is not an optional convenience:
+/// the generic-BV distance path calls exactly these three internally to bake
+/// the pose into the vertices before traversing, so it has to keep working.
 template <typename BV>
-void test_refit(const char* name)
+void test_replace(const char* name)
 {
-  std::printf("-- %s (refit / update)\n", name);
+  std::printf("-- %s (replace / rebuild)\n", name);
 
-  fcl::BVHModel<BV> m1, m2;
-  buildBoxMesh(m1, 0.5, 0.5, 0.5);
+  fcl::BVHModel<BV> m2;
   buildBoxMesh(m2, 0.5, 0.5, 0.5);
 
-  const double d0 = run(&m1, at(0, 0, 0), &m2, at(3, 0, 0));
-  CHECK_NEAR(d0, 2.0, 1e-6);
-
-  // Shrink m1 to half size by streaming new vertices through the update path,
-  // then refit bottom-up: the gap should grow by 0.25 on each side.
+  // Shrink a unit cube to half size, so the gap to m2 at x = 3 grows from
+  // 3 - 0.5 - 0.5 to 3 - 0.25 - 0.5.
   using S = typename BV::S;
   std::vector<fcl::Vector3<S>> v(8);
   const double h = 0.25;
@@ -275,20 +265,12 @@ void test_refit(const char* name)
   v[6] = fcl::Vector3<S>(+h, +h, +h);
   v[7] = fcl::Vector3<S>(-h, +h, +h);
 
-  m1.beginUpdateModel();
-  m1.updateSubModel(v);
-  m1.endUpdateModel(true, true);      // refit, bottom-up
-  m1.computeLocalAABB();
-
-  const double d1 = run(&m1, at(0, 0, 0), &m2, at(3, 0, 0));
-  CHECK_NEAR(d1, 3.0 - 0.25 - 0.5, 1e-6);
-
-  // Same again through the replace path with top-down refit.
+  // Same geometry through the replace path.
   fcl::BVHModel<BV> m3;
   buildBoxMesh(m3, 0.5, 0.5, 0.5);
   m3.beginReplaceModel();
   m3.replaceSubModel(v);
-  m3.endReplaceModel(true, false);   // refit, top-down
+  m3.endReplaceModel();
   m3.computeLocalAABB();
 
   const double d2 = run(&m3, at(0, 0, 0), &m2, at(3, 0, 0));
@@ -300,8 +282,8 @@ void test_collision_object()
 {
   std::printf("-- CollisionObject entry point\n");
 
-  auto m1 = std::make_shared<fcl::BVHModel<fcl::OBBRSS<double>>>();
-  auto m2 = std::make_shared<fcl::BVHModel<fcl::OBBRSS<double>>>();
+  auto m1 = std::make_shared<fcl::BVHModel<fcl::RSS<double>>>();
+  auto m2 = std::make_shared<fcl::BVHModel<fcl::RSS<double>>>();
   buildBoxMesh(*m1, 0.5, 0.5, 0.5);
   buildBoxMesh(*m2, 0.5, 0.5, 0.5);
 
@@ -318,17 +300,14 @@ void test_collision_object()
 
 int main()
 {
-  test_box_meshes<fcl::OBBRSS<double>>("OBBRSS", 1e-6);
   test_box_meshes<fcl::RSS<double>>("RSS", 1e-6);
   test_box_meshes<fcl::kIOS<double>>("kIOS", 1e-6);
   test_box_meshes<fcl::AABB<double>>("AABB", 1e-6);
-  test_triangles<fcl::OBBRSS<double>>("OBBRSS");
   test_triangles<fcl::RSS<double>>("RSS");
   test_bv_agreement();
-  test_refit<fcl::OBBRSS<double>>("OBBRSS");
-  test_refit<fcl::RSS<double>>("RSS");
-  test_refit<fcl::kIOS<double>>("kIOS");
-  test_refit<fcl::AABB<double>>("AABB");
+  test_replace<fcl::RSS<double>>("RSS");
+  test_replace<fcl::kIOS<double>>("kIOS");
+  test_replace<fcl::AABB<double>>("AABB");
   test_collision_object();
 
   std::printf("\n%d checks, %d failures\n", g_checks, g_failures);

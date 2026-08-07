@@ -50,24 +50,13 @@
 
 namespace fcl {
 
-template <typename S>
-FCL_EXPORT
-void normalize(Vector3<S>& v, bool* signal);
 
-template <typename Derived>
-FCL_EXPORT
-typename Derived::RealScalar triple(const Eigen::MatrixBase<Derived>& x,
-                                    const Eigen::MatrixBase<Derived>& y,
-                                    const Eigen::MatrixBase<Derived>& z);
 
 template <typename S, int M, int N>
 FCL_EXPORT
 VectorN<S, M+N> combine(
     const VectorN<S, M>& v1, const VectorN<S, N>& v2);
 
-template <typename S>
-FCL_EXPORT
-void hat(Matrix3<S>& mat, const Vector3<S>& vec);
 
 /// @brief compute the eigen vector and eigen vector of a matrix. dout is the
 /// eigen values, vout is the eigen vectors
@@ -103,23 +92,8 @@ void axisFromEigen(const Matrix3<S>& eigenV,
 ///         Columns 1 and 2 will be created orthogonal to the x-axis, and
 ///         orthogonal to each other. Otherwise, the orientation of the y-axis
 ///         and z-axis to the x-axis is arbitrary.
-template <typename S>
-FCL_EXPORT
-Matrix3<S> generateCoordinateSystem(const Vector3<S>& x_axis);
 
-template <typename DerivedA, typename DerivedB, typename DerivedC, typename DerivedD>
-FCL_EXPORT
-void relativeTransform(
-    const Eigen::MatrixBase<DerivedA>& R1, const Eigen::MatrixBase<DerivedB>& t1,
-    const Eigen::MatrixBase<DerivedA>& R2, const Eigen::MatrixBase<DerivedB>& t2,
-    Eigen::MatrixBase<DerivedC>& R, Eigen::MatrixBase<DerivedD>& t);
 
-template <typename S, typename DerivedA, typename DerivedB>
-FCL_EXPORT
-void relativeTransform(
-    const Eigen::Transform<S, 3, Eigen::Isometry>& T1,
-    const Eigen::Transform<S, 3, Eigen::Isometry>& T2,
-    Eigen::MatrixBase<DerivedA>& R, Eigen::MatrixBase<DerivedB>& t);
 
 /// @brief Compute the RSS bounding volume parameters: radius, rectangle size
 /// and the origin, given the BV axises.
@@ -151,14 +125,6 @@ void getRadiusAndOriginAndRectangleSize(
     S& r);
 
 /// @brief Compute the center and radius for a triangle's circumcircle
-template <typename S>
-FCL_EXPORT
-void circumCircleComputation(
-    const Vector3<S>& a,
-    const Vector3<S>& b,
-    const Vector3<S>& c,
-    Vector3<S>& center,
-    S& radius);
 
 /// @brief Compute the maximum distance from a given center point to a point cloud
 template <typename S>

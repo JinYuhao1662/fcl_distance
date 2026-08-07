@@ -404,54 +404,8 @@ struct ComputeRuleMedianImpl<S, kIOS<S>>
   }
 };
 
-//==============================================================================
-template <typename S>
-struct ComputeRuleCenterImpl<S, OBBRSS<S>>
-{
-  static void run(
-      BVSplitter<OBBRSS<S>>& splitter,
-      const OBBRSS<S>& bv,
-      unsigned int* /*primitive_indices*/,
-      int /*num_primitives*/)
-  {
-    computeSplitVector<S, OBBRSS<S>>(bv, splitter.split_vector);
-    computeSplitValue_bvcenter<S, OBBRSS<S>>(bv, splitter.split_value);
-  }
-};
 
-//==============================================================================
-template <typename S>
-struct ComputeRuleMeanImpl<S, OBBRSS<S>>
-{
-  static void run(
-      BVSplitter<OBBRSS<S>>& splitter,
-      const OBBRSS<S>& bv,
-      unsigned int* primitive_indices,
-      int num_primitives)
-  {
-    computeSplitVector<S, OBBRSS<S>>(bv, splitter.split_vector);
-    computeSplitValue_mean<S, OBBRSS<S>>(
-          bv, splitter.vertices, splitter.tri_indices, primitive_indices,
-          num_primitives, splitter.type, splitter.split_vector, splitter.split_value);
-  }
-};
 
-//==============================================================================
-template <typename S>
-struct ComputeRuleMedianImpl<S, OBBRSS<S>>
-{
-  static void run(
-      BVSplitter<OBBRSS<S>>& splitter,
-      const OBBRSS<S>& bv,
-      unsigned int* primitive_indices,
-      int num_primitives)
-  {
-    computeSplitVector<S, OBBRSS<S>>(bv, splitter.split_vector);
-    computeSplitValue_median<S, OBBRSS<S>>(
-          bv, splitter.vertices, splitter.tri_indices, primitive_indices,
-          num_primitives, splitter.type, splitter.split_vector, splitter.split_value);
-  }
-};
 
 //==============================================================================
 template <typename S>
@@ -489,17 +443,6 @@ struct ApplyImpl<S, kIOS<S>>
   }
 };
 
-//==============================================================================
-template <typename S>
-struct ApplyImpl<S, OBBRSS<S>>
-{
-  static bool run(
-      const BVSplitter<OBBRSS<S>>& splitter,
-      const Vector3<S>& q)
-  {
-    return splitter.split_vector.dot(q) > splitter.split_value;
-  }
-};
 
 //==============================================================================
 template <typename BV>
@@ -537,15 +480,6 @@ struct ComputeSplitVectorImpl<S, kIOS<S>>
   }
 };
 
-//==============================================================================
-template <typename S>
-struct ComputeSplitVectorImpl<S, OBBRSS<S>>
-{
-  static void run(const OBBRSS<S>& bv, Vector3<S>& split_vector)
-  {
-    split_vector = bv.obb.axis.col(0);
-  }
-};
 
 //==============================================================================
 template <typename S, typename BV>

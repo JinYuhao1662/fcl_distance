@@ -44,7 +44,6 @@
 #include <iostream>
 #include "fcl/math/triangle.h"
 #include "fcl/math/bv/kIOS.h"
-#include "fcl/math/bv/OBBRSS.h"
 #include "fcl/geometry/bvh/BVH_internal.h"
 #include "fcl/geometry/bvh/detail/BV_splitter_base.h"
 

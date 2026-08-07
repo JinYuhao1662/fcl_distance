@@ -44,13 +44,6 @@
 #include <new>
 #include <algorithm>
 
-// fcl_distance: added.  refitTree_bottomup() calls fit<BV>() but upstream
-// never includes its declaration here -- in the full FCL tree the header
-// always arrives transitively (via geometry/shape/utility-inl.h or
-// BVH_utility-inl.h).  This extraction drops both of those, so the dependency
-// has to be spelled out.
-#include "fcl/math/bv/utility.h"
-
 namespace fcl
 {
 
@@ -70,7 +63,6 @@ BVHModelType BVHModel<BV>::getModelType() const
 template <typename BV>
 BVHModel<BV>::BVHModel() : vertices(nullptr),
   tri_indices(nullptr),
-  prev_vertices(nullptr),
   num_tris(0),
   num_vertices(0),
   build_state(BVH_BUILD_STATE_EMPTY),
@@ -115,14 +107,6 @@ BVHModel<BV>::BVHModel(const BVHModel<BV>& other)
   else
     tri_indices = nullptr;
 
-  if(other.prev_vertices)
-  {
-    prev_vertices = new Vector3<S>[num_vertices];
-    std::copy(other.prev_vertices, other.prev_vertices + num_vertices, prev_vertices);
-  }
-  else
-    prev_vertices = nullptr;
-
   if(other.primitive_indices)
   {
     int num_primitives = 0;
@@ -162,7 +146,6 @@ BVHModel<BV>::~BVHModel()
   delete [] tri_indices;
   delete [] bvs;
 
-  delete [] prev_vertices;
   delete [] primitive_indices;
 }
 
@@ -220,7 +203,6 @@ int BVHModel<BV>::beginModel(int num_tris_, int num_vertices_)
     delete [] vertices; vertices = nullptr;
     delete [] tri_indices; tri_indices = nullptr;
     delete [] bvs; bvs = nullptr;
-    delete [] prev_vertices; prev_vertices = nullptr;
     delete [] primitive_indices; primitive_indices = nullptr;
 
     num_vertices_allocated = num_vertices = num_tris_allocated = num_tris = num_bvs_allocated = num_bvs = 0;
@@ -535,11 +517,8 @@ int BVHModel<BV>::beginReplaceModel()
     return BVH_ERR_BUILD_EMPTY_PREVIOUS_FRAME;
   }
 
-  if(prev_vertices)
-  {
-    delete [] prev_vertices;
-    prev_vertices = nullptr;
-  }
+  // fcl_distance: upstream frees prev_vertices here; the previous-frame array
+  // served only the update family and continuous collision, both dropped.
 
   num_vertex_updated = 0;
 
@@ -600,7 +579,7 @@ int BVHModel<BV>::replaceSubModel(const std::vector<Vector3<S>>& ps)
 
 //==============================================================================
 template <typename BV>
-int BVHModel<BV>::endReplaceModel(bool refit, bool bottomup)
+int BVHModel<BV>::endReplaceModel()
 {
   if(build_state != BVH_BUILD_STATE_REPLACE_BEGUN)
   {
@@ -614,130 +593,13 @@ int BVHModel<BV>::endReplaceModel(bool refit, bool bottomup)
     return BVH_ERR_INCORRECT_DATA;
   }
 
-  if(refit)  // refit, do not change BVH structure
-  {
-    refitTree(bottomup);
-  }
-  else // reconstruct bvh tree based on current frame data
-  {
-    buildTree();
-  }
+  // fcl_distance: upstream branches on `refit` here.  Refitting is not part
+  // of this build, so the tree is always rebuilt from the current frame --
+  // which is the branch the mesh-mesh path already took, since initialize()
+  // calls this with use_refit = false.
+  buildTree();
 
   build_state = BVH_BUILD_STATE_PROCESSED;
-
-  return BVH_OK;
-}
-
-//==============================================================================
-template <typename BV>
-int BVHModel<BV>::beginUpdateModel()
-{
-  if(build_state != BVH_BUILD_STATE_PROCESSED && build_state != BVH_BUILD_STATE_UPDATED)
-  {
-    std::cerr << "BVH Error! Call beginUpdatemodel() on a BVHModel that has no previous frame.\n";
-    return BVH_ERR_BUILD_EMPTY_PREVIOUS_FRAME;
-  }
-
-  if(prev_vertices)
-  {
-    Vector3<S>* temp = prev_vertices;
-    prev_vertices = vertices;
-    vertices = temp;
-  }
-  else
-  {
-    prev_vertices = vertices;
-    vertices = new Vector3<S>[num_vertices];
-  }
-
-  num_vertex_updated = 0;
-
-  build_state = BVH_BUILD_STATE_UPDATE_BEGUN;
-
-  return BVH_OK;
-}
-
-//==============================================================================
-template <typename BV>
-int BVHModel<BV>::updateVertex(const Vector3<S>& p)
-{
-  if(build_state != BVH_BUILD_STATE_UPDATE_BEGUN)
-  {
-    std::cerr << "BVH Warning! Call updateVertex() in a wrong order. updateVertex() was ignored. Must do a beginUpdateModel() for initialization.\n";
-    return BVH_ERR_BUILD_OUT_OF_SEQUENCE;
-  }
-
-  vertices[num_vertex_updated] = p;
-  num_vertex_updated++;
-
-  return BVH_OK;
-}
-
-//==============================================================================
-template <typename BV>
-int BVHModel<BV>::updateTriangle(const Vector3<S>& p1, const Vector3<S>& p2, const Vector3<S>& p3)
-{
-  if(build_state != BVH_BUILD_STATE_UPDATE_BEGUN)
-  {
-    std::cerr << "BVH Warning! Call updateTriangle() in a wrong order. updateTriangle() was ignored. Must do a beginUpdateModel() for initialization.\n";
-    return BVH_ERR_BUILD_OUT_OF_SEQUENCE;
-  }
-
-  vertices[num_vertex_updated] = p1; num_vertex_updated++;
-  vertices[num_vertex_updated] = p2; num_vertex_updated++;
-  vertices[num_vertex_updated] = p3; num_vertex_updated++;
-  return BVH_OK;
-}
-
-//==============================================================================
-template <typename BV>
-int BVHModel<BV>::updateSubModel(const std::vector<Vector3<S>>& ps)
-{
-  if(build_state != BVH_BUILD_STATE_UPDATE_BEGUN)
-  {
-    std::cerr << "BVH Warning! Call updateSubModel() in a wrong order. updateSubModel() was ignored. Must do a beginUpdateModel() for initialization.\n";
-    return BVH_ERR_BUILD_OUT_OF_SEQUENCE;
-  }
-
-  for(unsigned int i = 0; i < ps.size(); ++i)
-  {
-    vertices[num_vertex_updated] = ps[i];
-    num_vertex_updated++;
-  }
-  return BVH_OK;
-}
-
-//==============================================================================
-template <typename BV>
-int BVHModel<BV>::endUpdateModel(bool refit, bool bottomup)
-{
-  if(build_state != BVH_BUILD_STATE_UPDATE_BEGUN)
-  {
-    std::cerr << "BVH Warning! Call endUpdateModel() in a wrong order. endUpdateModel() was ignored. \n";
-    return BVH_ERR_BUILD_OUT_OF_SEQUENCE;
-  }
-
-  if(num_vertex_updated != num_vertices)
-  {
-    std::cerr << "BVH Error! The updated model should have the same number of vertices as the old model.\n";
-    return BVH_ERR_INCORRECT_DATA;
-  }
-
-  if(refit)  // refit, do not change BVH structure
-  {
-    refitTree(bottomup);
-  }
-  else // reconstruct bvh tree based on current frame data
-  {
-    buildTree();
-
-    // then refit
-
-    refitTree(bottomup);
-  }
-
-
-  build_state = BVH_BUILD_STATE_UPDATED;
 
   return BVH_OK;
 }
@@ -947,95 +809,6 @@ int BVHModel<BV>::recursiveBuildTree(int bv_id, int first_primitive, int num_pri
 }
 
 //==============================================================================
-template <typename BV>
-int BVHModel<BV>::refitTree(bool bottomup)
-{
-  if(bottomup)
-    return refitTree_bottomup();
-  else
-    return refitTree_topdown();
-}
-
-//==============================================================================
-template <typename BV>
-int BVHModel<BV>::refitTree_bottomup()
-{
-  int res = recursiveRefitTree_bottomup(0);
-
-  return res;
-}
-
-//==============================================================================
-template <typename BV>
-int BVHModel<BV>::recursiveRefitTree_bottomup(int bv_id)
-{
-  BVNode<BV>* bvnode = bvs + bv_id;
-  if(bvnode->isLeaf())
-  {
-    BVHModelType type = getModelType();
-    int primitive_id = -(bvnode->first_child + 1);
-    if(type == BVH_MODEL_POINTCLOUD)
-    {
-      BV bv;
-
-      if(prev_vertices)
-      {
-        Vector3<S> v[2];
-        v[0] = prev_vertices[primitive_id];
-        v[1] = vertices[primitive_id];
-        fit(v, 2, bv);
-      }
-      else
-        fit(vertices + primitive_id, 1, bv);
-
-      bvnode->bv = bv;
-    }
-    else if(type == BVH_MODEL_TRIANGLES)
-    {
-      BV bv;
-      const Triangle& triangle = tri_indices[primitive_id];
-
-      if(prev_vertices)
-      {
-        Vector3<S> v[6];
-        for(int i = 0; i < 3; ++i)
-        {
-          v[i] = prev_vertices[triangle[i]];
-          v[i + 3] = vertices[triangle[i]];
-        }
-
-        fit(v, 6, bv);
-      }
-      else
-      {
-        Vector3<S> v[3];
-        for(int i = 0; i < 3; ++i)
-        {
-          v[i] = vertices[triangle[i]];
-        }
-
-        fit(v, 3, bv);
-      }
-
-      bvnode->bv = bv;
-    }
-    else
-    {
-      std::cerr << "BVH Error: Model type not supported!\n";
-      return BVH_ERR_UNSUPPORTED_FUNCTION;
-    }
-  }
-  else
-  {
-    recursiveRefitTree_bottomup(bvnode->leftChild());
-    recursiveRefitTree_bottomup(bvnode->rightChild());
-    bvnode->bv = bvs[bvnode->leftChild()].bv + bvs[bvnode->rightChild()].bv;
-  }
-
-  return BVH_OK;
-}
-
-//==============================================================================
 template <typename S, typename BV>
 struct MakeParentRelativeRecurseImpl
 {
@@ -1066,22 +839,6 @@ void BVHModel<BV>::makeParentRelativeRecurse(
 {
   MakeParentRelativeRecurseImpl<typename BV::S, BV>::run(
         *this, bv_id, parent_axis, parent_c);
-}
-
-//==============================================================================
-template <typename BV>
-int BVHModel<BV>::refitTree_topdown()
-{
-  bv_fitter->set(vertices, prev_vertices, tri_indices, getModelType());
-  for(int i = 0; i < num_bvs; ++i)
-  {
-    BV bv = bv_fitter->fit(primitive_indices + bvs[i].first_primitive, bvs[i].num_primitives);
-    bvs[i].bv = bv;
-  }
-
-  bv_fitter->clear();
-
-  return BVH_OK;
 }
 
 //==============================================================================
@@ -1160,35 +917,6 @@ struct MakeParentRelativeRecurseImpl<S, RSS<S>>
 
 //==============================================================================
 template <typename S>
-struct MakeParentRelativeRecurseImpl<S, OBBRSS<S>>
-{
-  static void run(BVHModel<OBBRSS<S>>& model,
-                  int bv_id,
-                  const Matrix3<S>& parent_axis,
-                  const Vector3<S>& parent_c)
-  {
-    OBB<S>& obb = model.bvs[bv_id].bv.obb;
-    RSS<S>& rss = model.bvs[bv_id].bv.rss;
-    if(!model.bvs[bv_id].isLeaf())
-    {
-      MakeParentRelativeRecurseImpl<S, RSS<S>> tmp1;
-      tmp1(model, model.bvs[bv_id].first_child, obb.axis, obb.To);
-
-      MakeParentRelativeRecurseImpl<S, RSS<S>> tmp2;
-      tmp2(model, model.bvs[bv_id].first_child + 1, obb.axis, obb.To);
-    }
-
-    // make self parent relative
-    obb.axis = parent_axis.transpose() * obb.axis;
-    rss.axis = obb.axis;
-
-    obb.To = (obb.To - parent_c).transpose() * parent_axis;
-    rss.To = obb.To;
-  }
-};
-
-//==============================================================================
-template <typename S>
 struct GetNodeTypeImpl<AABB<S>>
 {
   static NODE_TYPE run()
@@ -1226,18 +954,6 @@ struct GetNodeTypeImpl<kIOS<S>>
     return BV_kIOS;
   }
 };
-
-//==============================================================================
-template <typename S>
-struct GetNodeTypeImpl<OBBRSS<S>>
-{
-  static NODE_TYPE run()
-  {
-    return BV_OBBRSS;
-  }
-};
-
-
 
 
 } // namespace fcl

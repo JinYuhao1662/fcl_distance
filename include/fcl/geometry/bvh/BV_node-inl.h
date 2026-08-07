@@ -104,15 +104,6 @@ struct GetOrientationImpl<S, RSS<S>>
   }
 };
 
-//==============================================================================
-template <typename S>
-struct GetOrientationImpl<S, OBBRSS<S>>
-{
-  static Matrix3<S> run(const OBBRSS<S>& bv)
-  {
-    return bv.obb.axis;
-  }
-};
 
 } // namespace fcl
 

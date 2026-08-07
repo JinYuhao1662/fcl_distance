@@ -223,35 +223,6 @@ struct SetImpl<S, kIOS<S>>
   }
 };
 
-//==============================================================================
-template <typename S>
-struct SetImpl<S, OBBRSS<S>>
-{
-  static void run(
-      BVFitter<OBBRSS<S>>& fitter,
-      Vector3<S>* vertices_,
-      Triangle* tri_indices_,
-      BVHModelType type_)
-  {
-    fitter.vertices = vertices_;
-    fitter.prev_vertices = nullptr;
-    fitter.tri_indices = tri_indices_;
-    fitter.type = type_;
-  }
-
-  static void run(
-      BVFitter<OBBRSS<S>>& fitter,
-      Vector3<S>* vertices_,
-      Vector3<S>* prev_vertices_,
-      Triangle* tri_indices_,
-      BVHModelType type_)
-  {
-    fitter.vertices = vertices_;
-    fitter.prev_vertices = prev_vertices_;
-    fitter.tri_indices = tri_indices_;
-    fitter.type = type_;
-  }
-};
 
 //==============================================================================
 template <typename S, typename BV>
@@ -446,38 +417,6 @@ struct FitImpl<S, kIOS<S>>
   }
 };
 
-//==============================================================================
-template <typename S>
-struct FitImpl<S, OBBRSS<S>>
-{
-  static OBBRSS<S> run(
-      const BVFitter<OBBRSS<S>>& fitter,
-      unsigned int* primitive_indices,
-      int num_primitives)
-  {
-    OBBRSS<S> bv;
-    Matrix3<S> M;
-    Matrix3<S> E;
-    Vector3<S> s;
-    getCovariance(
-          fitter.vertices, fitter.prev_vertices, fitter.tri_indices,
-          primitive_indices, num_primitives, M);
-    eigen_old(M, s, E);
-    axisFromEigen(E, s, bv.obb.axis);
-    bv.rss.axis = bv.obb.axis;
-
-    getExtentAndCenter(
-          fitter.vertices, fitter.prev_vertices, fitter.tri_indices,
-          primitive_indices, num_primitives, bv.obb.axis, bv.obb.To, bv.obb.extent);
-
-    getRadiusAndOriginAndRectangleSize(
-          fitter.vertices, fitter.prev_vertices, fitter.tri_indices,
-          primitive_indices, num_primitives,
-          bv.rss.axis, bv.rss.To, bv.rss.l, bv.rss.r);
-
-    return bv;
-  }
-};
 
 } // namespace detail
 } // namespace fcl

@@ -42,7 +42,6 @@
 
 #include "fcl/narrowphase/detail/primitive_shape_algorithm/triangle_distance.h"
 #include "fcl/math/bv/RSS.h"
-#include "fcl/math/bv/OBBRSS.h"
 #include "fcl/math/bv/kIOS.h"
 #include "fcl/narrowphase/detail/traversal/distance/bvh_distance_traversal_node.h"
 
@@ -90,8 +89,7 @@ bool initialize(
     BVHModel<BV>& model2,
     Transform3<typename BV::S>& tf2,
     const DistanceRequest<typename BV::S>& request,
-    DistanceResult<typename BV::S>& result,
-    bool use_refit = false, bool refit_bottomup = false);
+    DistanceResult<typename BV::S>& result);
 
 /// @brief Traversal node for distance computation between two meshes if their underlying BVH node is oriented node (RSS, OBBRSS, kIOS)
 template <typename S>
@@ -176,46 +174,6 @@ bool initialize(
     const DistanceRequest<S>& request,
     DistanceResult<S>& result);
 
-template <typename S>
-class FCL_EXPORT MeshDistanceTraversalNodeOBBRSS
-    : public MeshDistanceTraversalNode<OBBRSS<S>>
-{
-public:
-  MeshDistanceTraversalNodeOBBRSS();
-
-  void preprocess();
-
-  void postprocess();
-
-  S BVTesting(int b1, int b2) const
-  {
-    if (this->enable_statistics) this->num_bv_tests++;
-
-    return distance(tf.linear(), tf.translation(), this->model1->getBV(b1).bv, this->model2->getBV(b2).bv);
-  }
-
-  void leafTesting(int b1, int b2) const;
-
-  Transform3<S> tf;
-
-  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-};
-
-using MeshDistanceTraversalNodeOBBRSSf = MeshDistanceTraversalNodeOBBRSS<float>;
-using MeshDistanceTraversalNodeOBBRSSd = MeshDistanceTraversalNodeOBBRSS<double>;
-
-/// @brief Initialize traversal node for distance computation between two
-///  meshes, specialized for OBBRSS type
-template <typename S>
-FCL_EXPORT
-bool initialize(
-    MeshDistanceTraversalNodeOBBRSS<S>& node,
-    const BVHModel<OBBRSS<S>>& model1,
-    const Transform3<S>& tf1,
-    const BVHModel<OBBRSS<S>>& model2,
-    const Transform3<S>& tf2,
-    const DistanceRequest<S>& request,
-    DistanceResult<S>& result);
 
 template <typename BV>
 FCL_DEPRECATED_EXPORT

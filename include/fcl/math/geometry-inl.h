@@ -289,32 +289,8 @@ void getExtentAndCenter_mesh(
 //==============================================================================
 
 //==============================================================================
-template <typename S>
-FCL_EXPORT
-void normalize(Vector3<S>& v, bool* signal)
-{
-  S sqr_length = v.squaredNorm();
-
-  if (sqr_length > 0)
-  {
-    v /= std::sqrt(sqr_length);
-    *signal = true;
-  }
-  else
-  {
-    *signal = false;
-  }
-}
 
 //==============================================================================
-template <typename Derived>
-FCL_EXPORT
-typename Derived::RealScalar triple(const Eigen::MatrixBase<Derived>& x,
-                                    const Eigen::MatrixBase<Derived>& y,
-                                    const Eigen::MatrixBase<Derived>& z)
-{
-  return x.dot(y.cross(z));
-}
 
 //==============================================================================
 template <typename S, int M, int N>
@@ -329,12 +305,6 @@ VectorN<S, M+N> combine(
 }
 
 //==============================================================================
-template <typename S>
-FCL_EXPORT
-void hat(Matrix3<S>& mat, const Vector3<S>& vec)
-{
-  mat << 0, -vec[2], vec[1], vec[2], 0, -vec[0], -vec[1], vec[0], 0;
-}
 
 //==============================================================================
 template<typename S>
@@ -519,70 +489,10 @@ void axisFromEigen(const Matrix3<S>& eigenV,
 }
 
 //==============================================================================
-template <typename S>
-FCL_EXPORT
-Matrix3<S> generateCoordinateSystem(const Vector3<S>& x_axis)
-{
-  Matrix3<S> axis;
-  axis.col(0).noalias() = x_axis.normalized();
-  axis.col(1).noalias() = axis.col(0).unitOrthogonal();
-  axis.col(2).noalias() = axis.col(0).cross(axis.col(1)).normalized();
-  return axis;
-}
 
 //==============================================================================
-template <typename DerivedA, typename DerivedB, typename DerivedC, typename DerivedD>
-FCL_EXPORT
-void relativeTransform(
-    const Eigen::MatrixBase<DerivedA>& R1, const Eigen::MatrixBase<DerivedB>& t1,
-    const Eigen::MatrixBase<DerivedA>& R2, const Eigen::MatrixBase<DerivedB>& t2,
-    Eigen::MatrixBase<DerivedC>& R, Eigen::MatrixBase<DerivedD>& t)
-{
-  EIGEN_STATIC_ASSERT(
-        DerivedA::RowsAtCompileTime == 3
-        && DerivedA::ColsAtCompileTime == 3,
-        THIS_METHOD_IS_ONLY_FOR_MATRICES_OF_A_SPECIFIC_SIZE);
-
-  EIGEN_STATIC_ASSERT(
-        DerivedB::RowsAtCompileTime == 3
-        && DerivedB::ColsAtCompileTime == 1,
-        THIS_METHOD_IS_ONLY_FOR_MATRICES_OF_A_SPECIFIC_SIZE);
-
-  EIGEN_STATIC_ASSERT(
-        DerivedC::RowsAtCompileTime == 3
-        && DerivedC::ColsAtCompileTime == 3,
-        THIS_METHOD_IS_ONLY_FOR_MATRICES_OF_A_SPECIFIC_SIZE);
-
-  EIGEN_STATIC_ASSERT(
-        DerivedD::RowsAtCompileTime == 3
-        && DerivedD::ColsAtCompileTime == 1,
-        THIS_METHOD_IS_ONLY_FOR_MATRICES_OF_A_SPECIFIC_SIZE);
-
-  R.noalias() = R1.transpose() * R2;
-  t.noalias() = R1.transpose() * (t2 - t1);
-}
 
 //==============================================================================
-template <typename S, typename DerivedA, typename DerivedB>
-FCL_EXPORT
-void relativeTransform(
-    const Transform3<S>& T1,
-    const Transform3<S>& T2,
-    Eigen::MatrixBase<DerivedA>& R, Eigen::MatrixBase<DerivedB>& t)
-{
-  EIGEN_STATIC_ASSERT(
-        DerivedA::RowsAtCompileTime == 3
-        && DerivedA::ColsAtCompileTime == 3,
-        THIS_METHOD_IS_ONLY_FOR_MATRICES_OF_A_SPECIFIC_SIZE);
-
-  EIGEN_STATIC_ASSERT(
-        DerivedB::RowsAtCompileTime == 3
-        && DerivedB::ColsAtCompileTime == 1,
-        THIS_METHOD_IS_ONLY_FOR_MATRICES_OF_A_SPECIFIC_SIZE);
-
-  R.noalias() = T1.linear().transpose() * T2.linear();
-  t.noalias() = T1.linear().transpose() * (T2.translation() - T1.translation());
-}
 
 //==============================================================================
 template <typename S>
@@ -1150,27 +1060,6 @@ void getRadiusAndOriginAndRectangleSize(
 }
 
 //==============================================================================
-template <typename S>
-FCL_EXPORT
-void circumCircleComputation(
-    const Vector3<S>& a,
-    const Vector3<S>& b,
-    const Vector3<S>& c,
-    Vector3<S>& center,
-    S& radius)
-{
-  Vector3<S> e1 = a - c;
-  Vector3<S> e2 = b - c;
-  S e1_len2 = e1.squaredNorm();
-  S e2_len2 = e2.squaredNorm();
-  Vector3<S> e3 = e1.cross(e2);
-  S e3_len2 = e3.squaredNorm();
-  radius = e1_len2 * e2_len2 * (e1 - e2).squaredNorm() / e3_len2;
-  radius = std::sqrt(radius) * 0.5;
-
-  center = c;
-  center.noalias() += (e2 * e1_len2 - e1 * e2_len2).cross(e3) * (0.5 * 1 / e3_len2);
-}
 
 
 

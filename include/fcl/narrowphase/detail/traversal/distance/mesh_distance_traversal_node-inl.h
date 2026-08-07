@@ -124,9 +124,7 @@ bool initialize(
     BVHModel<BV>& model2,
     Transform3<typename BV::S>& tf2,
     const DistanceRequest<typename BV::S>& request,
-    DistanceResult<typename BV::S>& result,
-    bool use_refit,
-    bool refit_bottomup)
+    DistanceResult<typename BV::S>& result)
 {
   using S = typename BV::S;
 
@@ -145,7 +143,7 @@ bool initialize(
 
     model1.beginReplaceModel();
     model1.replaceSubModel(vertices_transformed1);
-    model1.endReplaceModel(use_refit, refit_bottomup);
+    model1.endReplaceModel();
 
     tf1.setIdentity();
   }
@@ -162,7 +160,7 @@ bool initialize(
 
     model2.beginReplaceModel();
     model2.replaceSubModel(vertices_transformed2);
-    model2.endReplaceModel(use_refit, refit_bottomup);
+    model2.endReplaceModel();
 
     tf2.setIdentity();
   }
@@ -284,65 +282,6 @@ void MeshDistanceTraversalNodekIOS<S>::postprocess()
 //==============================================================================
 template <typename S>
 void MeshDistanceTraversalNodekIOS<S>::leafTesting(int b1, int b2) const
-{
-  detail::meshDistanceOrientedNodeLeafTesting(
-        b1,
-        b2,
-        this->model1,
-        this->model2,
-        this->vertices1,
-        this->vertices2,
-        this->tri_indices1,
-        this->tri_indices2,
-        tf,
-        this->enable_statistics,
-        this->num_leaf_tests,
-        this->request,
-        *this->result);
-}
-
-//==============================================================================
-template <typename S>
-MeshDistanceTraversalNodeOBBRSS<S>::MeshDistanceTraversalNodeOBBRSS()
-  : MeshDistanceTraversalNode<OBBRSS<S>>(),
-    tf(Transform3<S>::Identity())
-{
-  // Do nothing
-}
-
-//==============================================================================
-template <typename S>
-void MeshDistanceTraversalNodeOBBRSS<S>::preprocess()
-{
-  detail::distancePreprocessOrientedNode(
-        this->model1,
-        this->model2,
-        this->vertices1,
-        this->vertices2,
-        this->tri_indices1,
-        this->tri_indices2,
-        0,
-        0,
-        tf,
-        this->request,
-        *this->result);
-}
-
-//==============================================================================
-template <typename S>
-void MeshDistanceTraversalNodeOBBRSS<S>::postprocess()
-{
-  detail::distancePostprocessOrientedNode(
-        this->model1,
-        this->model2,
-        this->tf1,
-        this->request,
-        *this->result);
-}
-
-//==============================================================================
-template <typename S>
-void MeshDistanceTraversalNodeOBBRSS<S>::leafTesting(int b1, int b2) const
 {
   detail::meshDistanceOrientedNodeLeafTesting(
         b1,
@@ -617,21 +556,6 @@ bool initialize(
     const BVHModel<kIOS<S>>& model1,
     const Transform3<S>& tf1,
     const BVHModel<kIOS<S>>& model2,
-    const Transform3<S>& tf2,
-    const DistanceRequest<S>& request,
-    DistanceResult<S>& result)
-{
-  return detail::setupMeshDistanceOrientedNode(
-        node, model1, tf1, model2, tf2, request, result);
-}
-
-//==============================================================================
-template <typename S>
-bool initialize(
-    MeshDistanceTraversalNodeOBBRSS<S>& node,
-    const BVHModel<OBBRSS<S>>& model1,
-    const Transform3<S>& tf1,
-    const BVHModel<OBBRSS<S>>& model2,
     const Transform3<S>& tf2,
     const DistanceRequest<S>& request,
     DistanceResult<S>& result)

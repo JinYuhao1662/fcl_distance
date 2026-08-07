@@ -1,6 +1,9 @@
 # fcl_distance
 
-**FCL 0.7.0 中 mesh × mesh 距离计算的 header-only 独立提取。**
+**FCL 0.7.0 中 mesh × mesh 距离计算的 header-only 独立提取（no-obbrss-refit 分支）。**
+
+> 本分支在 `main` 基础上进一步移除了 `OBBRSS` 包围体与 refit/update 机制，
+> 只保留 `AABB / RSS / kIOS` 三种包围体和一次性建树。
 
 从 [FCL (Flexible Collision Library)](https://github.com/flexible-collision-library/fcl)
 0.7.0（BSD-3-Clause，master@e5efcc4）中抽出 `fcl::distance` 在**网格对网格**这一
@@ -24,8 +27,8 @@
 #include "fcl/narrowphase/distance.h"
 #include "fcl/geometry/bvh/BVH_model.h"
 
-// 建网格（OBBRSS 通常是 mesh 距离最快的包围体）
-fcl::BVHModel<fcl::OBBRSS<double>> m1, m2;
+// 建网格（RSS 是本分支上 mesh 距离的推荐包围体）
+fcl::BVHModel<fcl::RSS<double>> m1, m2;
 m1.beginModel();
 m1.addSubModel(vertices1, triangles1);   // std::vector<fcl::Vector3d>, std::vector<fcl::Triangle>
 m1.endModel();
@@ -54,13 +57,15 @@ g++ -std=c++11 -O2 -Ifcl_distance/include -I/usr/include/eigen3 your.cpp
 ## 覆盖范围
 
 - `fcl::distance` 的两组入口：`CollisionGeometry*` 与 `CollisionObject*`
-- 网格 `BVHModel<BV>`，包围体支持 `AABB / RSS / kIOS / OBBRSS`
-  （即上游为 mesh × mesh 注册的全部 4 种；`KDOP` 上游未注册，已移除）
+- 网格 `BVHModel<BV>`，包围体支持 `AABB / RSS / kIOS`
+  （上游为 mesh × mesh 注册 4 种，本分支移除了 `OBBRSS`；`KDOP` 上游未注册）
 - 最近点输出（`enable_nearest_points`）与最近三角形索引（`result.b1/b2`）
-- BVH 的构建、拟合（`BVFitter`）、划分（`BVSplitter`）、refit
+- BVH 的构建、拟合（`BVFitter`）、划分（`BVSplitter`）
+- 顶点替换（`beginReplaceModel`/`replaceSubModel`/`endReplaceModel`）——
+  距离路径内部要靠它把位姿烘焙进顶点
 
 **不含**：形状（Box/Sphere/…）、mesh × 形状、GJK/EPA 求解器、碰撞检测
-（`fcl::collide`）、broadphase、连续碰撞、octree。
+（`fcl::collide`）、broadphase、连续碰撞、octree、`OBBRSS`、refit/update。
 
 两点行为差异，都是 mesh × mesh 场景下的必然结果：
 
@@ -76,9 +81,9 @@ g++ -std=c++11 -O2 -Ifcl_distance/include -I/usr/include/eigen3 your.cpp
 | 检查 | 结果 |
 |---|---|
 | 编译 + 链接（无 `-lccd`） | **通过**，5 秒 |
-| `tests/test_mesh_distance.cpp` 黄金值 | **72 项检查，0 失败**（含 refit/update 路径） |
-| 四种包围体结果互相一致 | **通过**（AABB/RSS/kIOS/OBBRSS 同值） |
-| 与上游 libfcl 0.7.0 数值对拍 | **640 组查询逐字节完全一致** |
+| `tests/test_mesh_distance.cpp` 黄金值 | **46 项检查，0 失败** |
+| 三种包围体结果互相一致 | **通过**（AABB/RSS/kIOS 同值） |
+| 与上游 libfcl 0.7.0 数值对拍 | **440 组查询逐字节完全一致** |
 
 对拍方式：`tools/crosscheck_dump.cpp` 同一份源码分别链接系统 libfcl 0.7.0 和本
 提取，跑 200 组随机位姿（立方体网格 12 面 + 环形网格 128 面，分离与穿透各半），
@@ -92,7 +97,7 @@ cmp up.txt pt.txt && echo IDENTICAL
 
 ## 与上游代码的关系
 
-60 个头文件中，57 个来自上游 FCL，逐字未改（除每个文件开头一行来源注释、
+56 个头文件中，53 个来自上游 FCL，逐字未改（除每个文件开头一行来源注释、
 删除 `extern template` 声明、以及 6 处从 `src/*.cpp` 内联进头文件的非模板定义）。
 
 有 4 个文件为服务本场景做了**删减**，每个文件顶部都写明了删了什么、为什么：
@@ -109,6 +114,25 @@ cmp up.txt pt.txt && echo IDENTICAL
 `GetNodeTypeImpl<KDOP<S,N>>` 特化：`KDOP` 从未被上游注册为 mesh × mesh 的包围体，
 `BVHModel<KDOP<...>>` 在本提取中无法用于距离计算。
 
+本分支相对 `main` 的额外删减：
+
+| 内容 | 说明 |
+|---|---|
+| `math/bv/OBBRSS.h/-inl.h` 及全部 `OBBRSS` 特化 | 分发矩阵注册项、`BVHDistanceImpl`、`MeshDistanceTraversalNodeOBBRSS`、`BVFitter`/`BVSplitter`/`BVNode`/`BVHModel` 中的特化、`OBBRSS_fit_functions` |
+| `BVHModel` 的 refit 族 | `refitTree` / `refitTree_topdown` / `refitTree_bottomup` / `recursiveRefitTree_bottomup` |
+| `BVHModel` 的 update 族 | `beginUpdateModel` / `updateVertex` / `updateTriangle` / `updateSubModel` / `endUpdateModel`、`prev_vertices` 成员 |
+| `math/bv/utility.h/-inl.h` | 只服务 refit 的 `fit<BV>()` 与全部 `*_fit_functions` |
+| `math/geometry` 的 7 个自由函数 | `generateCoordinateSystem`、`circumCircleComputation`、`relativeTransform`、`triple`、`hat`、`normalize`、`combine` |
+| `math/bv/OBB` 的 4 个自由函数 | `obbDisjoint`、`computeVertices`、`merge_largedist`、`merge_smalldist` |
+
+后两项在 `main` 上是**活代码**——它们只在 refit 路径上被调用。refit 移除后才成为
+死代码，删除前逐项做了「删掉重编 + 输出比对」验证。
+
+`endReplaceModel()` 失去了 `refit` / `bottomup` 两个参数，恒定重建树。这不是可选
+简化：通用包围体（AABB）的距离路径在 `initialize()` 里就是用
+`beginReplaceModel`/`replaceSubModel`/`endReplaceModel(use_refit=false)` 把位姿
+烘焙进顶点的，本来走的就是重建分支。
+
 另有一处**补充**：`geometry/bvh/BVH_model-inl.h` 加了一行
 `#include "fcl/math/bv/utility.h"`。上游该文件调用 `fit<BV>()` 却没有 include 其
 声明——在完整 FCL 树里这个头总会传递地到达，本提取删掉了那些中间文件，所以必须显式写出。
@@ -124,7 +148,7 @@ cmp up.txt pt.txt && echo IDENTICAL
 ## 目录
 
 ```
-include/fcl/**            头文件树，60 个（含 -inl.h）
+include/fcl/**            头文件树，56 个（含 -inl.h）
 docs/REFERENCE_CHAIN.md   fcl::distance 引用链路分析
 tests/test_mesh_distance.cpp     黄金值测试
 tools/port_from_upstream.py      从上游重新生成本树

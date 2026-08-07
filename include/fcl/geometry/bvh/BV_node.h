@@ -43,7 +43,6 @@
 #include <iostream>
 #include "fcl/math/bv/OBB.h"
 #include "fcl/math/bv/RSS.h"
-#include "fcl/math/bv/OBBRSS.h"
 #include "fcl/geometry/bvh/BV_node_base.h"
 
 namespace fcl

@@ -125,25 +125,13 @@ public:
   /// @brief Replace a set of points in the old BVH model
   int replaceSubModel(const std::vector<Vector3<S>>& ps);
 
-  /// @brief End BVH model replacement, will also refit or rebuild the bounding volume hierarchy
-  int endReplaceModel(bool refit = true, bool bottomup = true);
+  /// @brief End BVH model replacement; rebuilds the bounding volume
+  /// hierarchy.  fcl_distance: upstream can refit instead of rebuilding
+  /// here, but refitting is not part of this build, so the refit and
+  /// bottomup parameters are gone and the tree is always rebuilt.
+  int endReplaceModel();
 
 
-  /// @brief Replace the geometry information of current frame (i.e. should have the same mesh topology with the previous frame).
-  /// The current frame will be saved as the previous frame in prev_vertices.
-  int beginUpdateModel();
-
-  /// @brief Update one point in the old BVH model
-  int updateVertex(const Vector3<S>& p);
-
-  /// @brief Update one triangle in the old BVH model
-  int updateTriangle(const Vector3<S>& p1, const Vector3<S>& p2, const Vector3<S>& p3);
-
-  /// @brief Update a set of points in the old BVH model
-  int updateSubModel(const std::vector<Vector3<S>>& ps);
-
-  /// @brief End BVH model update, will also refit or rebuild the bounding volume hierarchy
-  int endUpdateModel(bool refit = true, bool bottomup = true);
 
   /// @brief Check the number of memory used
   int memUsage(int msg) const;
@@ -164,9 +152,6 @@ public:
 
   /// @brief Geometry triangle index data, will be nullptr for point clouds
   Triangle* tri_indices;
-
-  /// @brief Geometry point data in previous frame
-  Vector3<S>* prev_vertices;
 
   /// @brief Number of triangles
   int num_tris;
@@ -199,15 +184,6 @@ private:
 
   /// @brief Build the bounding volume hierarchy
   int buildTree();
-
-  /// @brief Refit the bounding volume hierarchy
-  int refitTree(bool bottomup);
-
-  /// @brief Refit the bounding volume hierarchy in a top-down way (slow but more compact)
-  int refitTree_topdown();
-
-  /// @brief Refit the bounding volume hierarchy in a bottom-up way (fast but less compact)
-  int refitTree_bottomup();
 
   /// @brief Recursive kernel for hierarchy construction
   int recursiveBuildTree(int bv_id, int first_primitive, int num_primitives);

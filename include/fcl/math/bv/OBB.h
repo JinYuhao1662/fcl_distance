@@ -125,19 +125,10 @@ using OBBf = OBB<float>;
 using OBBd = OBB<double>;
 
 /// @brief Compute the 8 vertices of a OBB
-template <typename S>
-FCL_EXPORT
-void computeVertices(const OBB<S>& b, Vector3<S> vertices[8]);
 
 /// @brief OBB merge method when the centers of two smaller OBB are far away
-template <typename S>
-FCL_EXPORT
-OBB<S> merge_largedist(const OBB<S>& b1, const OBB<S>& b2);
 
 /// @brief OBB merge method when the centers of two smaller OBB are close
-template <typename S>
-FCL_EXPORT
-OBB<S> merge_smalldist(const OBB<S>& b1, const OBB<S>& b2);
 
 /// @brief Translate the OBB bv
 template <typename S, typename Derived>
@@ -156,23 +147,10 @@ bool overlap(const Eigen::MatrixBase<DerivedA>& R0,
 /// @brief Check collision between two boxes: the first box is in configuration
 /// (R, T) and its half dimension is set by a; the second box is in identity
 /// configuration and its half dimension is set by b.
-template <typename S>
-FCL_EXPORT
-bool obbDisjoint(
-    const Matrix3<S>& B,
-    const Vector3<S>& T,
-    const Vector3<S>& a,
-    const Vector3<S>& b);
 
 /// @brief Check collision between two boxes: the first box is in configuration
 /// (R, T) and its half dimension is set by a; the second box is in identity
 /// configuration and its half dimension is set by b.
-template <typename S>
-FCL_EXPORT
-bool obbDisjoint(
-    const Transform3<S>& tf,
-    const Vector3<S>& a,
-    const Vector3<S>& b);
 
 } // namespace fcl
 
