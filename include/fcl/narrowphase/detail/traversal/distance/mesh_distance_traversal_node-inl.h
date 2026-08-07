@@ -241,65 +241,6 @@ void MeshDistanceTraversalNodeRSS<S>::leafTesting(int b1, int b2) const
 }
 
 //==============================================================================
-template <typename S>
-MeshDistanceTraversalNodekIOS<S>::MeshDistanceTraversalNodekIOS()
-  : MeshDistanceTraversalNode<kIOS<S>>(),
-    tf(Transform3<S>::Identity())
-{
-  // Do nothing
-}
-
-//==============================================================================
-template <typename S>
-void MeshDistanceTraversalNodekIOS<S>::preprocess()
-{
-  detail::distancePreprocessOrientedNode(
-        this->model1,
-        this->model2,
-        this->vertices1,
-        this->vertices2,
-        this->tri_indices1,
-        this->tri_indices2,
-        0,
-        0,
-        tf,
-        this->request,
-        *this->result);
-}
-
-//==============================================================================
-template <typename S>
-void MeshDistanceTraversalNodekIOS<S>::postprocess()
-{
-  detail::distancePostprocessOrientedNode(
-        this->model1,
-        this->model2,
-        this->tf1,
-        this->request,
-        *this->result);
-}
-
-//==============================================================================
-template <typename S>
-void MeshDistanceTraversalNodekIOS<S>::leafTesting(int b1, int b2) const
-{
-  detail::meshDistanceOrientedNodeLeafTesting(
-        b1,
-        b2,
-        this->model1,
-        this->model2,
-        this->vertices1,
-        this->vertices2,
-        this->tri_indices1,
-        this->tri_indices2,
-        tf,
-        this->enable_statistics,
-        this->num_leaf_tests,
-        this->request,
-        *this->result);
-}
-
-//==============================================================================
 template <typename BV>
 void meshDistanceOrientedNodeLeafTesting(int b1,
     int b2,
@@ -549,20 +490,6 @@ bool initialize(
         node, model1, tf1, model2, tf2, request, result);
 }
 
-//==============================================================================
-template <typename S>
-bool initialize(
-    MeshDistanceTraversalNodekIOS<S>& node,
-    const BVHModel<kIOS<S>>& model1,
-    const Transform3<S>& tf1,
-    const BVHModel<kIOS<S>>& model2,
-    const Transform3<S>& tf2,
-    const DistanceRequest<S>& request,
-    DistanceResult<S>& result)
-{
-  return detail::setupMeshDistanceOrientedNode(
-        node, model1, tf1, model2, tf2, request, result);
-}
 
 } // namespace detail
 } // namespace fcl

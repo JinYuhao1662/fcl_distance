@@ -42,7 +42,6 @@
 
 #include "fcl/math/triangle.h"
 #include "fcl/geometry/bvh/BVH_internal.h"
-#include "fcl/math/bv/kIOS.h"
 #include <vector>
 #include <iostream>
 

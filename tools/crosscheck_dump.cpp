@@ -142,8 +142,6 @@ int main()
   auto box_b_aabb = boxMesh<fcl::AABB<S>>(0.4, 0.7, 0.5);
   auto box_a_rss = boxMesh<fcl::RSS<S>>(0.6, 0.6, 0.6);
   auto box_b_rss = boxMesh<fcl::RSS<S>>(0.4, 0.7, 0.5);
-  auto box_a_kios = boxMesh<fcl::kIOS<S>>(0.6, 0.6, 0.6);
-  auto box_b_kios = boxMesh<fcl::kIOS<S>>(0.4, 0.7, 0.5);
 
   auto ring_a_rss = ringMesh<fcl::RSS<S>>(16, 1.0, 0.3);
   auto ring_b_rss = ringMesh<fcl::RSS<S>>(16, 0.8, 0.25);
@@ -158,7 +156,6 @@ int main()
     const fcl::Transform3<S> tf2 = randomTransform(span);
     query(case_id, 0, box_a_aabb.get(), tf1, box_b_aabb.get(), tf2);
     query(case_id, 1, box_a_rss.get(), tf1, box_b_rss.get(), tf2);
-    query(case_id, 2, box_a_kios.get(), tf1, box_b_kios.get(), tf2);
     ++case_id;
   }
 

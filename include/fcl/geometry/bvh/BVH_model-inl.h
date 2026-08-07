@@ -816,31 +816,11 @@ struct GetNodeTypeImpl<AABB<S>>
 
 //==============================================================================
 template <typename S>
-struct GetNodeTypeImpl<OBB<S>>
-{
-  static NODE_TYPE run()
-  {
-    return BV_OBB;
-  }
-};
-
-//==============================================================================
-template <typename S>
 struct GetNodeTypeImpl<RSS<S>>
 {
   static NODE_TYPE run()
   {
     return BV_RSS;
-  }
-};
-
-//==============================================================================
-template <typename S>
-struct GetNodeTypeImpl<kIOS<S>>
-{
-  static NODE_TYPE run()
-  {
-    return BV_kIOS;
   }
 };
 

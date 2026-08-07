@@ -152,25 +152,6 @@ struct BVHDistanceImpl<S, RSS<S>>
 };
 
 //==============================================================================
-template <typename S>
-struct BVHDistanceImpl<S, kIOS<S>>
-{
-  static S run(
-      const CollisionGeometry<S>* o1,
-      const Transform3<S>& tf1,
-      const CollisionGeometry<S>* o2,
-      const Transform3<S>& tf2,
-      const DistanceRequest<S>& request,
-      DistanceResult<S>& result)
-  {
-    return detail::orientedMeshDistance<
-        MeshDistanceTraversalNodekIOS<S>, kIOS<S>>(
-            o1, tf1, o2, tf2, request, result);
-  }
-};
-
-
-//==============================================================================
 template <typename BV, typename NarrowPhaseSolver>
 typename BV::S BVHDistance(
     const CollisionGeometry<typename BV::S>* o1,
@@ -201,7 +182,6 @@ DistanceFunctionMatrix<NarrowPhaseSolver>::DistanceFunctionMatrix()
 
   distance_matrix[BV_AABB][BV_AABB] = &BVHDistance<AABB<S>, NarrowPhaseSolver>;
   distance_matrix[BV_RSS][BV_RSS] = &BVHDistance<RSS<S>, NarrowPhaseSolver>;
-  distance_matrix[BV_kIOS][BV_kIOS] = &BVHDistance<kIOS<S>, NarrowPhaseSolver>;
 }
 
 } // namespace detail

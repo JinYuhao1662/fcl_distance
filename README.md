@@ -3,9 +3,10 @@
 **FCL 0.7.0 中 mesh × mesh 距离计算的 header-only 独立提取（slim 分支）。**
 
 > **`slim` 分支：在 `main` 基础上继续做功能精简。**
-> 移除了 `OBBRSS` 包围体、refit/update 机制、`makeParentRelative`、
-> 以及包围体的碰撞查询接口（`overlap` / `contain(BV)` / `expand`）。
-> 保留 `AABB / RSS / kIOS` 三种包围体和一次性建树。
+> 移除了 `OBBRSS` / `kIOS` / `OBB` 包围体、refit/update 机制、
+> `makeParentRelative`、以及包围体的碰撞查询接口
+> （`overlap` / `contain(BV)` / `expand`）。
+> 只保留 `AABB` 与 `RSS` 两种包围体和一次性建树。
 > 需要完整 mesh × mesh 能力（含 OBBRSS 与变形网格 refit）请用 `main`。
 
 从 [FCL (Flexible Collision Library)](https://github.com/flexible-collision-library/fcl)
@@ -60,15 +61,15 @@ g++ -std=c++11 -O2 -Ifcl_distance/include -I/usr/include/eigen3 your.cpp
 ## 覆盖范围
 
 - `fcl::distance` 的两组入口：`CollisionGeometry*` 与 `CollisionObject*`
-- 网格 `BVHModel<BV>`，包围体支持 `AABB / RSS / kIOS`
-  （上游为 mesh × mesh 注册 4 种，本分支移除了 `OBBRSS`；`KDOP` 上游未注册）
+- 网格 `BVHModel<BV>`，包围体支持 `AABB` 与 `RSS`
+  （上游为 mesh × mesh 注册 4 种，本分支只留 2 种；`KDOP` 上游未注册）
 - 最近点输出（`enable_nearest_points`）与最近三角形索引（`result.b1/b2`）
 - BVH 的构建、拟合（`BVFitter`）、划分（`BVSplitter`）
 - 顶点替换（`beginReplaceModel`/`replaceSubModel`/`endReplaceModel`）——
   距离路径内部要靠它把位姿烘焙进顶点
 
 **不含**：形状（Box/Sphere/…）、mesh × 形状、GJK/EPA 求解器、碰撞检测
-（`fcl::collide`）、broadphase、连续碰撞、octree、`OBBRSS`、refit/update。
+（`fcl::collide`）、broadphase、连续碰撞、octree、`OBBRSS`/`kIOS`/`OBB`、refit/update。
 
 两点行为差异，都是 mesh × mesh 场景下的必然结果：
 
@@ -84,9 +85,9 @@ g++ -std=c++11 -O2 -Ifcl_distance/include -I/usr/include/eigen3 your.cpp
 | 检查 | 结果 |
 |---|---|
 | 编译 + 链接（无 `-lccd`） | **通过**，5 秒 |
-| `tests/test_mesh_distance.cpp` 黄金值 | **46 项检查，0 失败** |
-| 三种包围体结果互相一致 | **通过**（AABB/RSS/kIOS 同值） |
-| 与上游 libfcl 0.7.0 数值对拍 | **440 组查询逐字节完全一致** |
+| `tests/test_mesh_distance.cpp` 黄金值 | **32 项检查，0 失败** |
+| 两种包围体结果互相一致 | **通过**（AABB/RSS 同值） |
+| 与上游 libfcl 0.7.0 数值对拍 | **320 组查询逐字节完全一致** |
 
 对拍方式：`tools/crosscheck_dump.cpp` 同一份源码分别链接系统 libfcl 0.7.0 和本
 提取，跑 200 组随机位姿（立方体网格 12 面 + 环形网格 128 面，分离与穿透各半），
@@ -100,14 +101,14 @@ cmp up.txt pt.txt && echo IDENTICAL
 
 ## 与上游代码的关系
 
-56 个头文件中，53 个来自上游 FCL，逐字未改（除每个文件开头一行来源注释、
+52 个头文件中，49 个来自上游 FCL，逐字未改（除每个文件开头一行来源注释、
 删除 `extern template` 声明、以及 6 处从 `src/*.cpp` 内联进头文件的非模板定义）。
 
 有 4 个文件为服务本场景做了**删减**，每个文件顶部都写明了删了什么、为什么：
 
 | 文件 | 改动 |
 |---|---|
-| `narrowphase/detail/distance_func_matrix-inl.h` | 上游注册 192 个分发项；本分支只保留 mesh × mesh 的 3 项（`BV_AABB/BV_RSS/BV_kIOS` 对角线），其余整函数删除 |
+| `narrowphase/detail/distance_func_matrix-inl.h` | 上游注册 192 个分发项；本分支只保留 mesh × mesh 的 2 项（`BV_AABB/BV_RSS` 对角线），其余整函数删除 |
 | `narrowphase/distance-inl.h` | 删掉 `collide()` 符号距离回退（mesh × mesh 下是死代码）；双求解器分支合并为 `detail::MeshDistanceSolver` 占位类型 |
 | `narrowphase/detail/traversal/collision_node.h/-inl.h` | 只保留 `distance(node)` 驱动，删掉 `collide` / `selfCollide` / `collide2` |
 | `narrowphase/detail/traversal/traversal_recurse.h/-inl.h` | 只保留 `distanceRecurse` / `distanceQueueRecurse` 及其 `BVT/BVTQ` 辅助结构 |
@@ -127,7 +128,9 @@ cmp up.txt pt.txt && echo IDENTICAL
 | `math/geometry` 的 7 个自由函数 | `generateCoordinateSystem`、`circumCircleComputation`、`relativeTransform`、`triple`、`hat`、`normalize`、`combine` |
 | `math/bv/OBB` 的 4 个自由函数 | `obbDisjoint`、`computeVertices`、`merge_largedist`、`merge_smalldist` |
 | `BVHModel::makeParentRelative` 及其 `MakeParentRelativeRecurseImpl` 特化 | 把包围体转成相对父节点的坐标，只服务有向 BV 的碰撞遍历 |
-| 包围体的碰撞查询面 | `AABB/RSS/kIOS/OBB` 的 `overlap`（成员与自由函数）、`contain(BV)`、`AABB::axisOverlap`、`AABB::expand`，以及 `BVHModel::memUsage` |
+| 包围体的碰撞查询面 | `AABB/RSS` 的 `overlap`（成员与自由函数）、`contain(BV)`、`AABB::axisOverlap`、`AABB::expand`，以及 `BVHModel::memUsage` |
+| `math/bv/kIOS.h/-inl.h` 与 `math/bv/OBB.h/-inl.h` | `kIOS` 内嵌一个 `OBB` 并把 `width/height/depth/volume` 转发给它，两者绑定；`kIOS` 去掉后没有任何东西再构造 `OBB` |
+| `math/geometry` 的 `getExtentAndCenter` 与 `maximumDistance` | 只服务 OBB / kIOS 的拟合器 |
 
 其中 `math/geometry` 与 `math/bv/OBB` 两项在 `main` 上是**活代码**——它们只在 refit
 路径上被调用。refit 移除后才成为死代码。包围体的碰撞查询面则是随更早的碰撞链路
@@ -147,14 +150,14 @@ cmp up.txt pt.txt && echo IDENTICAL
 `bv.axis.col(2)` 取自 `this->axis`、`kIOS::encloseSphere` 硬编码 `float`、
 `MeshDistanceTraversalNode` 从默认构造的 request 读 `rel_err/abs_err`（恒 0）、
 `RSS()/kIOS/Triangle()` 等未初始化成员），因此数值结果与上游一致——
-440 组对拍逐字节相同即是证明。
+320 组对拍逐字节相同即是证明。
 
 `fcl/config.h` 与 `fcl/export.h` 是 CMake 生成物，本仓库用静态版本替代。
 
 ## 目录
 
 ```
-include/fcl/**            头文件树，56 个（含 -inl.h）
+include/fcl/**            头文件树，52 个（含 -inl.h）
 docs/REFERENCE_CHAIN.md   fcl::distance 引用链路分析
 tests/test_mesh_distance.cpp     黄金值测试
 tools/port_from_upstream.py      从上游重新生成本树

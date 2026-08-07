@@ -43,7 +43,6 @@
 #include <vector>
 #include <memory>
 
-#include "fcl/math/bv/OBB.h"
 #include "fcl/geometry/collision_geometry.h"
 #include "fcl/geometry/bvh/BVH_internal.h"
 #include "fcl/geometry/bvh/BV_node.h"

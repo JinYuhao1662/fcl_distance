@@ -86,16 +86,6 @@ Matrix3<typename BV::S> BVNode<BV>::getOrientation() const
 
 //==============================================================================
 template <typename S>
-struct GetOrientationImpl<S, OBB<S>>
-{
-  static Matrix3<S> run(const OBB<S>& bv)
-  {
-    return bv.axis;
-  }
-};
-
-//==============================================================================
-template <typename S>
 struct GetOrientationImpl<S, RSS<S>>
 {
   static Matrix3<S> run(const RSS<S>& bv)

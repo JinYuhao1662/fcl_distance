@@ -126,44 +126,6 @@ void getRadiusAndOriginAndRectangleSize(
 
 /// @brief Compute the center and radius for a triangle's circumcircle
 
-/// @brief Compute the maximum distance from a given center point to a point cloud
-template <typename S>
-FCL_EXPORT
-S maximumDistance(
-    const Vector3<S>* const ps,
-    const Vector3<S>* const ps2,
-    Triangle* ts,
-    unsigned int* indices,
-    int n,
-    const Vector3<S>& query);
-
-/// @brief Compute the bounding volume extent and center for a set or subset of
-/// points, given the BV axises.
-template <typename S>
-FCL_EXPORT
-void getExtentAndCenter(
-    const Vector3<S>* const ps,
-    const Vector3<S>* const ps2,
-    Triangle* ts,
-    unsigned int* indices,
-    int n,
-    const Matrix3<S>& axis,
-    Vector3<S>& center,
-    Vector3<S>& extent);
-
-/// @brief Compute the bounding volume extent and center for a set or subset of
-/// points, given the BV axises.
-template <typename S>
-FCL_EXPORT
-void getExtentAndCenter(
-    const Vector3<S>* const ps,
-    const Vector3<S>* const ps2,
-    Triangle* ts,
-    unsigned int* indices,
-    int n,
-    Transform3<S>& tf,
-    Vector3<S>& extent);
-
 /// @brief Compute the covariance matrix for a set or subset of points. if
 /// ts = null, then indices refer to points directly; otherwise refer to
 /// triangles

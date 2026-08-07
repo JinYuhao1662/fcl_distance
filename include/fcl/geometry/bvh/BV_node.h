@@ -41,7 +41,6 @@
 #define FCL_BV_BVNODE_H
 
 #include <iostream>
-#include "fcl/math/bv/OBB.h"
 #include "fcl/math/bv/RSS.h"
 #include "fcl/geometry/bvh/BV_node_base.h"
 

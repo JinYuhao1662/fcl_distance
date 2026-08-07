@@ -216,10 +216,8 @@ void test_bv_agreement()
 
   fcl::BVHModel<fcl::AABB<double>> a1, a2;
   fcl::BVHModel<fcl::RSS<double>> r1, r2;
-  fcl::BVHModel<fcl::kIOS<double>> k1, k2;
   buildBoxMesh(a1, 0.6, 0.4, 0.9); buildBoxMesh(a2, 0.3, 0.7, 0.5);
   buildBoxMesh(r1, 0.6, 0.4, 0.9); buildBoxMesh(r2, 0.3, 0.7, 0.5);
-  buildBoxMesh(k1, 0.6, 0.4, 0.9); buildBoxMesh(k2, 0.3, 0.7, 0.5);
 
   Transform3d tf1 = Transform3d::Identity();
   tf1.linear() =
@@ -232,11 +230,9 @@ void test_bv_agreement()
 
   const double da = run(&a1, tf1, &a2, tf2);
   const double dr = run(&r1, tf1, &r2, tf2);
-  const double dk = run(&k1, tf1, &k2, tf2);
 
-  std::printf("   AABB=%.12g RSS=%.12g kIOS=%.12g\n", da, dr, dk);
+  std::printf("   AABB=%.12g RSS=%.12g\n", da, dr);
   CHECK_NEAR(dr, da, 1e-9);
-  CHECK_NEAR(dk, da, 1e-9);
 }
 
 /// Streaming new vertex positions through beginReplaceModel /
@@ -301,12 +297,10 @@ void test_collision_object()
 int main()
 {
   test_box_meshes<fcl::RSS<double>>("RSS", 1e-6);
-  test_box_meshes<fcl::kIOS<double>>("kIOS", 1e-6);
   test_box_meshes<fcl::AABB<double>>("AABB", 1e-6);
   test_triangles<fcl::RSS<double>>("RSS");
   test_bv_agreement();
   test_replace<fcl::RSS<double>>("RSS");
-  test_replace<fcl::kIOS<double>>("kIOS");
   test_replace<fcl::AABB<double>>("AABB");
   test_collision_object();
 
