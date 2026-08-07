@@ -104,11 +104,10 @@ cmp up.txt pt.txt && echo IDENTICAL
 
 | 文件 | 改动 |
 |---|---|
-| `narrowphase/detail/distance_func_matrix-inl.h` | 上游注册 192 个分发项；本提取只保留 mesh × mesh 的 4 项（`BV_AABB/BV_RSS/BV_kIOS/BV_OBBRSS` 对角线），其余整函数删除 |
+| `narrowphase/detail/distance_func_matrix-inl.h` | 上游注册 192 个分发项；本分支只保留 mesh × mesh 的 3 项（`BV_AABB/BV_RSS/BV_kIOS` 对角线），其余整函数删除 |
 | `narrowphase/distance-inl.h` | 删掉 `collide()` 符号距离回退（mesh × mesh 下是死代码）；双求解器分支合并为 `detail::MeshDistanceSolver` 占位类型 |
 | `narrowphase/detail/traversal/collision_node.h/-inl.h` | 只保留 `distance(node)` 驱动，删掉 `collide` / `selfCollide` / `collide2` |
 | `narrowphase/detail/traversal/traversal_recurse.h/-inl.h` | 只保留 `distanceRecurse` / `distanceQueueRecurse` 及其 `BVT/BVTQ` 辅助结构 |
-| `math/bv/utility.h/-inl.h` | 删除 `convertBV` 与 `ConvertBVImpl` 全套特化（279 行）——BV 类型间转换，mesh × mesh 不使用 |
 
 另删除 `math/bv/kDOP.h/-inl.h`（563 行）及 `BVH_model-inl.h` 中 3 个
 `GetNodeTypeImpl<KDOP<S,N>>` 特化：`KDOP` 从未被上游注册为 mesh × mesh 的包围体，
@@ -133,15 +132,11 @@ cmp up.txt pt.txt && echo IDENTICAL
 `beginReplaceModel`/`replaceSubModel`/`endReplaceModel(use_refit=false)` 把位姿
 烘焙进顶点的，本来走的就是重建分支。
 
-另有一处**补充**：`geometry/bvh/BVH_model-inl.h` 加了一行
-`#include "fcl/math/bv/utility.h"`。上游该文件调用 `fit<BV>()` 却没有 include 其
-声明——在完整 FCL 树里这个头总会传递地到达，本提取删掉了那些中间文件，所以必须显式写出。
-
 保留的代码里，**上游已知的 bug 与未初始化行为一律未改**（如 `RSS::operator+` 中
 `bv.axis.col(2)` 取自 `this->axis`、`kIOS::encloseSphere` 硬编码 `float`、
 `MeshDistanceTraversalNode` 从默认构造的 request 读 `rel_err/abs_err`（恒 0）、
-`OBB()/RSS()/kIOS/Triangle()` 等未初始化成员），因此数值结果与上游一致——
-640 组对拍逐字节相同即是证明。
+`RSS()/kIOS/Triangle()` 等未初始化成员），因此数值结果与上游一致——
+440 组对拍逐字节相同即是证明。
 
 `fcl/config.h` 与 `fcl/export.h` 是 CMake 生成物，本仓库用静态版本替代。
 
