@@ -62,27 +62,6 @@ RSS<S>::RSS()
 
 //==============================================================================
 template <typename S>
-bool RSS<S>::overlap(const RSS<S>& other) const
-{
-  Vector3<S> t = other.To - To;
-  Vector3<S> T(
-        axis.col(0).dot(t), axis.col(1).dot(t), axis.col(2).dot(t));
-  Matrix3<S> R = axis.transpose() * other.axis;
-
-  S dist = rectDistance(R, T, l, other.l);
-  return (dist <= (r + other.r));
-}
-
-//==============================================================================
-template <typename S>
-bool RSS<S>::overlap(const RSS<S>& other,
-                          RSS<S>& /*overlap_part*/) const
-{
-  return overlap(other);
-}
-
-//==============================================================================
-template <typename S>
 bool RSS<S>::contain(const Vector3<S>& p) const
 {
   Vector3<S> local_p = p - To;
@@ -1888,24 +1867,6 @@ S rectDistance(
 
   S sep = (sep1 > sep2 ? sep1 : sep2);
   return (sep > 0 ? sep : 0);
-}
-
-//==============================================================================
-template <typename S, typename DerivedA, typename DerivedB>
-bool overlap(
-    const Eigen::MatrixBase<DerivedA>& R0,
-    const Eigen::MatrixBase<DerivedB>& T0,
-    const RSS<S>& b1,
-    const RSS<S>& b2)
-{
-  Matrix3<S> R0b2 = R0 * b2.axis;
-  Matrix3<S> R = b1.axis.transpose() * R0b2;
-
-  Vector3<S> Ttemp = R0 * b2.To + T0 - b1.To;
-  Vector3<S> T = Ttemp.transpose() * b1.axis;
-
-  S dist = rectDistance(R, T, b1.l, b2.l);
-  return (dist <= (b1.r + b2.r));
 }
 
 //==============================================================================

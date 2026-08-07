@@ -606,34 +606,6 @@ int BVHModel<BV>::endReplaceModel()
 
 //==============================================================================
 template <typename BV>
-int BVHModel<BV>::memUsage(int msg) const
-{
-  int mem_bv_list = sizeof(BV) * num_bvs;
-  int mem_tri_list = sizeof(Triangle) * num_tris;
-  int mem_vertex_list = sizeof(Vector3<S>) * num_vertices;
-
-  int total_mem = mem_bv_list + mem_tri_list + mem_vertex_list + sizeof(BVHModel<BV>);
-  if(msg)
-  {
-    std::cerr << "Total for model " << total_mem << " bytes.\n";
-    std::cerr << "BVs: " << num_bvs << " allocated.\n";
-    std::cerr << "Tris: " << num_tris << " allocated.\n";
-    std::cerr << "Vertices: " << num_vertices << " allocated.\n";
-  }
-
-  return BVH_OK;
-}
-
-//==============================================================================
-template <typename BV>
-void BVHModel<BV>::makeParentRelative()
-{
-  makeParentRelativeRecurse(
-        0, Matrix3<S>::Identity(), Vector3<S>::Zero());
-}
-
-//==============================================================================
-template <typename BV>
 Vector3<typename BV::S> BVHModel<BV>::computeCOM() const
 {
   S vol = 0;
@@ -809,39 +781,6 @@ int BVHModel<BV>::recursiveBuildTree(int bv_id, int first_primitive, int num_pri
 }
 
 //==============================================================================
-template <typename S, typename BV>
-struct MakeParentRelativeRecurseImpl
-{
-  static void run(BVHModel<BV>& model,
-                  int bv_id,
-                  const Matrix3<S>& parent_axis,
-                  const Vector3<S>& parent_c)
-  {
-    if(!model.bvs[bv_id].isLeaf())
-    {
-      MakeParentRelativeRecurseImpl<S, BV> tmp1;
-      tmp1(model, model.bvs[bv_id].first_child, parent_axis, model.bvs[bv_id].getCenter());
-
-      MakeParentRelativeRecurseImpl<S, BV> tmp2;
-      tmp2(model, model.bvs[bv_id].first_child + 1, parent_axis, model.bvs[bv_id].getCenter());
-    }
-
-    model.bvs[bv_id].bv = translate(model.bvs[bv_id].bv, -parent_c);
-  }
-};
-
-//==============================================================================
-template <typename BV>
-void BVHModel<BV>::makeParentRelativeRecurse(
-    int bv_id,
-    const Matrix3<S>& parent_axis,
-    const Vector3<S>& parent_c)
-{
-  MakeParentRelativeRecurseImpl<typename BV::S, BV>::run(
-        *this, bv_id, parent_axis, parent_c);
-}
-
-//==============================================================================
 template <typename BV>
 void BVHModel<BV>::computeLocalAABB()
 {
@@ -864,56 +803,6 @@ void BVHModel<BV>::computeLocalAABB()
 
   this->aabb_local = aabb_;
 }
-
-//==============================================================================
-template <typename S>
-struct MakeParentRelativeRecurseImpl<S, OBB<S>>
-{
-  static void run(BVHModel<OBB<S>>& model,
-                  int bv_id,
-                  const Matrix3<S>& parent_axis,
-                  const Vector3<S>& parent_c)
-  {
-    OBB<S>& obb = model.bvs[bv_id].bv;
-    if(!model.bvs[bv_id].isLeaf())
-    {
-      MakeParentRelativeRecurseImpl<S, OBB<S>> tmp1;
-      tmp1(model, model.bvs[bv_id].first_child, obb.axis, obb.To);
-
-      MakeParentRelativeRecurseImpl<S, OBB<S>> tmp2;
-      tmp2(model, model.bvs[bv_id].first_child + 1, obb.axis, obb.To);
-    }
-
-    // make self parent relative
-    obb.axis = parent_axis.transpose() * obb.axis;
-    obb.To = (obb.To - parent_c).transpose() * parent_axis;
-  }
-};
-
-//==============================================================================
-template <typename S>
-struct MakeParentRelativeRecurseImpl<S, RSS<S>>
-{
-  static void run(BVHModel<RSS<S>>& model,
-                  int bv_id,
-                  const Matrix3<S>& parent_axis,
-                  const Vector3<S>& parent_c)
-  {
-    RSS<S>& rss = model.bvs[bv_id].bv;
-    if(!model.bvs[bv_id].isLeaf())
-    {
-      MakeParentRelativeRecurseImpl<S, RSS<S>> tmp1;
-      tmp1(model, model.bvs[bv_id].first_child, rss.axis, rss.To);
-
-      MakeParentRelativeRecurseImpl<S, RSS<S>> tmp2;
-      tmp2(model, model.bvs[bv_id].first_child + 1, rss.axis, rss.To);
-    }
-
-    // make self parent relative
-    rss.axis = parent_axis.transpose() * rss.axis;
-    rss.To = (rss.To - parent_c).transpose() * parent_axis;
-  }
-};
 
 //==============================================================================
 template <typename S>

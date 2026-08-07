@@ -73,15 +73,7 @@ public:
   /// @brief OBB related with kIOS
   OBB<S> obb;
 
-  /// @brief Check collision between two kIOS
-  bool overlap(const kIOS<S>& other) const;
 
-  /// @brief Check collision between two kIOS and return the overlap part.
-  /// For kIOS, we return nothing, as the overlappart of two kIOS usually is not
-  /// an kIOS
-  /// @todo Not efficient. It first checks the sphere collisions and then use
-  /// OBB for further culling.
-  bool overlap(const kIOS<S>& other, kIOS<S>& overlap_part) const;
 
   /// @brief Check whether the kIOS contains a point
   bool contain(const Vector3<S>& p) const;
@@ -131,26 +123,6 @@ template <typename S, typename Derived>
 FCL_EXPORT
 kIOS<S> translate(
     const kIOS<S>& bv, const Eigen::MatrixBase<Derived>& t);
-
-/// @brief Check collision between two kIOSs, b1 is in configuration (R0, T0)
-/// and b2 is in identity.
-/// @todo Not efficient
-template <typename S, typename DerivedA, typename DerivedB>
-FCL_EXPORT
-bool overlap(
-    const Eigen::MatrixBase<DerivedA>& R0,
-    const Eigen::MatrixBase<DerivedB>& T0,
-    const kIOS<S>& b1, const kIOS<S>& b2);
-
-/// @brief Check collision between two kIOSs, b1 is in configuration (R0, T0)
-/// and b2 is in identity.
-/// @todo Not efficient
-template <typename S>
-FCL_EXPORT
-bool overlap(
-    const Transform3<S>& tf,
-    const kIOS<S>& b1,
-    const kIOS<S>& b2);
 
 /// @brief Approximate distance between two kIOS bounding volumes
 /// @todo P and Q is not returned, need implementation

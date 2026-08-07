@@ -94,57 +94,6 @@ AABB<S>::AABB(
 
 //==============================================================================
 template <typename S>
-bool AABB<S>::overlap(const AABB<S>& other) const
-{
-  if ((min_.array() > other.max_.array()).any())
-    return false;
-
-  if ((max_.array() < other.min_.array()).any())
-    return false;
-
-  return true;
-}
-
-//==============================================================================
-template <typename S>
-bool AABB<S>::contain(const AABB<S>& other) const
-{
-  if ((min_.array() > other.min_.array()).any())
-    return false;
-
-  if ((max_.array() < other.max_.array()).any())
-    return false;
-
-  return true;
-}
-
-//==============================================================================
-template <typename S>
-bool AABB<S>::axisOverlap(const AABB<S>& other, int axis_id) const
-{
-  if(min_[axis_id] > other.max_[axis_id]) return false;
-
-  if(max_[axis_id] < other.min_[axis_id]) return false;
-
-  return true;
-}
-
-//==============================================================================
-template <typename S>
-bool AABB<S>::overlap(const AABB<S>& other, AABB<S>& overlap_part) const
-{
-  if(!overlap(other))
-  {
-    return false;
-  }
-
-  overlap_part.min_ = min_.cwiseMax(other.min_);
-  overlap_part.max_ = max_.cwiseMin(other.max_);
-  return true;
-}
-
-//==============================================================================
-template <typename S>
 bool AABB<S>::contain(const Vector3<S>& p) const
 {
   if ((min_.array() > p.array()).any())
@@ -319,24 +268,6 @@ bool AABB<S>::equal(const AABB<S>& other) const
 {
   return min_.isApprox(other.min_, std::numeric_limits<S>::epsilon() * 100)
       && max_.isApprox(other.max_, std::numeric_limits<S>::epsilon() * 100);
-}
-
-//==============================================================================
-template <typename S>
-AABB<S>& AABB<S>::expand(const Vector3<S>& delta)
-{
-  min_ -= delta;
-  max_ += delta;
-  return *this;
-}
-
-//==============================================================================
-template <typename S>
-AABB<S>& AABB<S>::expand(const AABB<S>& core, S ratio)
-{
-  min_ = min_ * ratio - core.min_;
-  max_ = max_ * ratio - core.max_;
-  return *this;
 }
 
 //==============================================================================

@@ -76,34 +76,6 @@ typename kIOS<S>::kIOS_Sphere kIOS<S>::encloseSphere(
 
 //==============================================================================
 template <typename S>
-bool kIOS<S>::overlap(const kIOS<S>& other) const
-{
-  for(unsigned int i = 0; i < num_spheres; ++i)
-  {
-    for(unsigned int j = 0; j < other.num_spheres; ++j)
-    {
-      S o_dist = (spheres[i].o - other.spheres[j].o).squaredNorm();
-      S sum_r = spheres[i].r + other.spheres[j].r;
-      if(o_dist > sum_r * sum_r)
-        return false;
-    }
-  }
-
-  return obb.overlap(other.obb);
-
-  return true;
-}
-
-//==============================================================================
-template <typename S>
-bool kIOS<S>::overlap(
-    const kIOS<S>& other, kIOS<S>& /*overlap_part*/) const
-{
-  return overlap(other);
-}
-
-//==============================================================================
-template <typename S>
 bool kIOS<S>::contain(const Vector3<S>& p) const
 {
   for(unsigned int i = 0; i < num_spheres; ++i)
@@ -241,23 +213,6 @@ S kIOS<S>::distance(
   }
 
   return d_max;
-}
-
-//==============================================================================
-template <typename S, typename DerivedA, typename DerivedB>
-bool overlap(
-    const Eigen::MatrixBase<DerivedA>& R0,
-    const Eigen::MatrixBase<DerivedB>& T0,
-    const kIOS<S>& b1, const kIOS<S>& b2)
-{
-  kIOS<S> b2_temp = b2;
-  for(unsigned int i = 0; i < b2_temp.num_spheres; ++i)
-    b2_temp.spheres[i].o = R0 * b2_temp.spheres[i].o + T0;
-
-  b2_temp.obb.To = R0 * b2_temp.obb.To + T0;
-  b2_temp.obb.axis = R0 * b2_temp.obb.axis;
-
-  return b1.overlap(b2_temp);
 }
 
 //==============================================================================

@@ -86,12 +86,7 @@ public:
   /// Constructor
   RSS();
 
-  /// @brief Check collision between two RSS
-  bool overlap(const RSS<S>& other) const;
 
-  /// @brief Check collision between two RSS and return the overlap part.
-  /// For RSS, we return nothing, as the overlap part of two RSSs usually is not a RSS.
-  bool overlap(const RSS<S>& other, RSS<S>& overlap_part) const;
 
   /// @brief Check whether the RSS contains a point
   bool contain(const Vector3<S>& p) const;
@@ -225,16 +220,6 @@ S distance(
     const RSS<S>& b2,
     Vector3<S>* P = nullptr,
     Vector3<S>* Q = nullptr);
-
-/// @brief Check collision between two RSSs, b1 is in configuration (R0, T0) and
-/// b2 is in identity.
-template <typename S, typename DerivedA, typename DerivedB>
-FCL_EXPORT
-bool overlap(
-    const Eigen::MatrixBase<DerivedA>& R0,
-    const Eigen::MatrixBase<DerivedB>& T0,
-    const RSS<S>& b1,
-    const RSS<S>& b2);
 
 /// @brief Translate the RSS bv
 template <typename S>

@@ -75,17 +75,9 @@ public:
   /// @brief Creating an AABB contains three points
   AABB(const Vector3<S>& a, const Vector3<S>& b, const Vector3<S>& c);
 
-  /// @brief Check whether two AABB are overlap
-  bool overlap(const AABB<S>& other) const;
 
-  /// @brief Check whether the AABB contains another AABB
-  bool contain(const AABB<S>& other) const;
 
-  /// @brief Check whether two AABB are overlapped along specific axis
-  bool axisOverlap(const AABB<S>& other, int axis_id) const;
 
-  /// @brief Check whether two AABB are overlap and return the overlap part
-  bool overlap(const AABB<S>& other, AABB<S>& overlap_part) const;
 
   /// @brief Check whether the AABB contains a point
   bool contain(const Vector3<S>& p) const;
@@ -130,12 +122,7 @@ public:
   /// @brief whether two AABB are equal
   bool equal(const AABB<S>& other) const;
 
-  /// @brief expand the half size of the AABB by delta, and keep the center
-  /// unchanged.
-  AABB<S>& expand(const Vector3<S>& delta);
 
-  /// @brief expand the aabb by increase the thickness of the plate by a ratio
-  AABB<S>& expand(const AABB<S>& core, S ratio);
 };
 
 using AABBf = AABB<float>;

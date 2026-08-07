@@ -77,11 +77,7 @@ public:
       const Vector3<S>& center,
       const Vector3<S>& extent);
 
-  /// @brief Check collision between two OBB, return true if collision happens. 
-  bool overlap(const OBB<S>& other) const;
   
-  /// @brief Check collision between two OBB and return the overlap part. For OBB, the overlap_part return value is NOT used as the overlap part of two obbs usually is not an obb. 
-  bool overlap(const OBB<S>& other, OBB<S>& overlap_part) const;
 
   /// @brief Check whether the OBB contains a point.
   bool contain(const Vector3<S>& p) const;
@@ -135,14 +131,6 @@ template <typename S, typename Derived>
 FCL_EXPORT
 OBB<S> translate(
     const OBB<S>& bv, const Eigen::MatrixBase<Derived>& t);
-
-/// @brief Check collision between two obbs, b1 is in configuration (R0, T0) and
-/// b2 is in identity.
-template <typename S, typename DerivedA, typename DerivedB>
-FCL_EXPORT
-bool overlap(const Eigen::MatrixBase<DerivedA>& R0,
-             const Eigen::MatrixBase<DerivedB>& T0,
-             const OBB<S>& b1, const OBB<S>& b2);
 
 /// @brief Check collision between two boxes: the first box is in configuration
 /// (R, T) and its half dimension is set by a; the second box is in identity

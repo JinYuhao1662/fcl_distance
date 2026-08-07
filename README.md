@@ -123,9 +123,17 @@ cmp up.txt pt.txt && echo IDENTICAL
 | `math/bv/utility.h/-inl.h` | 只服务 refit 的 `fit<BV>()` 与全部 `*_fit_functions` |
 | `math/geometry` 的 7 个自由函数 | `generateCoordinateSystem`、`circumCircleComputation`、`relativeTransform`、`triple`、`hat`、`normalize`、`combine` |
 | `math/bv/OBB` 的 4 个自由函数 | `obbDisjoint`、`computeVertices`、`merge_largedist`、`merge_smalldist` |
+| `BVHModel::makeParentRelative` 及其 `MakeParentRelativeRecurseImpl` 特化 | 把包围体转成相对父节点的坐标，只服务有向 BV 的碰撞遍历 |
+| 包围体的碰撞查询面 | `AABB/RSS/kIOS/OBB` 的 `overlap`（成员与自由函数）、`contain(BV)`、`AABB::axisOverlap`、`AABB::expand`，以及 `BVHModel::memUsage` |
 
-后两项在 `main` 上是**活代码**——它们只在 refit 路径上被调用。refit 移除后才成为
-死代码，删除前逐项做了「删掉重编 + 输出比对」验证。
+其中 `math/geometry` 与 `math/bv/OBB` 两项在 `main` 上是**活代码**——它们只在 refit
+路径上被调用。refit 移除后才成为死代码。包围体的碰撞查询面则是随更早的碰撞链路
+移除而失去调用方的。所有删除都逐项做了「删掉重编 + 输出逐字节比对」验证。
+
+保留的公开 API：`addVertex` / `addTriangle` / `addSubModel(点云)` /
+`replaceVertex` / `replaceTriangle` 在本测试里未被调用，探测显示"可删"，但它们是
+用户建网格的正常入口，故保留。`contain(const Vector3&)`（点包含）被 `BVSplitter`
+使用，也保留。
 
 `endReplaceModel()` 失去了 `refit` / `bottomup` 两个参数，恒定重建树。这不是可选
 简化：通用包围体（AABB）的距离路径在 `initialize()` 里就是用

@@ -72,30 +72,6 @@ OBB<S>::OBB(const Matrix3<S>& axis_,
 
 //==============================================================================
 template <typename S>
-bool OBB<S>::overlap(const OBB<S>& other) const
-{
-  /// compute the relative transform that takes us from this->frame to
-  /// other.frame
-
-  Vector3<S> t = other.To - To;
-  Vector3<S> T(
-        axis.col(0).dot(t), axis.col(1).dot(t), axis.col(2).dot(t));
-  Matrix3<S> R = axis.transpose() * other.axis;
-
-  return !obbDisjoint(R, T, extent, other.extent);
-}
-
-//==============================================================================
-template <typename S>
-bool OBB<S>::overlap(const OBB& other, OBB& overlap_part) const
-{
-  FCL_UNUSED(overlap_part);
-
-  return overlap(other);
-}
-
-//==============================================================================
-template <typename S>
 bool OBB<S>::contain(const Vector3<S>& p) const
 {
   Vector3<S> local_p = p - To;
@@ -219,21 +195,6 @@ OBB<S> translate(
   OBB<S> res(bv);
   res.To += t;
   return res;
-}
-
-//==============================================================================
-template <typename S, typename DerivedA, typename DerivedB>
-bool overlap(const Eigen::MatrixBase<DerivedA>& R0,
-             const Eigen::MatrixBase<DerivedB>& T0,
-             const OBB<S>& b1, const OBB<S>& b2)
-{
-  typename DerivedA::PlainObject R0b2 = R0 * b2.axis;
-  typename DerivedA::PlainObject R = b1.axis.transpose() * R0b2;
-
-  typename DerivedB::PlainObject Ttemp = R0 * b2.To + T0 - b1.To;
-  typename DerivedB::PlainObject T = Ttemp.transpose() * b1.axis;
-
-  return !obbDisjoint(R, T, b1.extent, b2.extent);
 }
 
 //==============================================================================

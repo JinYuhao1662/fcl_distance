@@ -133,12 +133,9 @@ public:
 
 
 
-  /// @brief Check the number of memory used
-  int memUsage(int msg) const;
 
   /// @brief This is a special acceleration: BVH_model default stores the BV's transform in world coordinate. However, we can also store each BV's transform related to its parent 
   /// BV node. When traversing the BVH, this can save one matrix transformation.
-  void makeParentRelative();
 
   Vector3<S> computeCOM() const override;
 
@@ -188,19 +185,6 @@ private:
   /// @brief Recursive kernel for hierarchy construction
   int recursiveBuildTree(int bv_id, int first_primitive, int num_primitives);
 
-  /// @brief Recursive kernel for bottomup refitting 
-  int recursiveRefitTree_bottomup(int bv_id);
-
-  /// @recursively compute each bv's transform related to its parent. For
-  /// default BV, only the translation works. For oriented BV (OBB, RSS,
-  /// OBBRSS), special implementation is provided.
-  void makeParentRelativeRecurse(
-      int bv_id,
-      const Matrix3<S>& parent_axis,
-      const Vector3<S>& parent_c);
-
-  template <typename, typename>
-  friend struct MakeParentRelativeRecurseImpl;
 };
 
 } // namespace fcl
