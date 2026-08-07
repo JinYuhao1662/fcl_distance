@@ -1,9 +1,12 @@
 # fcl_distance
 
-**FCL 0.7.0 中 mesh × mesh 距离计算的 header-only 独立提取（no-obbrss-refit 分支）。**
+**FCL 0.7.0 中 mesh × mesh 距离计算的 header-only 独立提取（slim 分支）。**
 
-> 本分支在 `main` 基础上进一步移除了 `OBBRSS` 包围体与 refit/update 机制，
-> 只保留 `AABB / RSS / kIOS` 三种包围体和一次性建树。
+> **`slim` 分支：在 `main` 基础上继续做功能精简。**
+> 移除了 `OBBRSS` 包围体、refit/update 机制、`makeParentRelative`、
+> 以及包围体的碰撞查询接口（`overlap` / `contain(BV)` / `expand`）。
+> 保留 `AABB / RSS / kIOS` 三种包围体和一次性建树。
+> 需要完整 mesh × mesh 能力（含 OBBRSS 与变形网格 refit）请用 `main`。
 
 从 [FCL (Flexible Collision Library)](https://github.com/flexible-collision-library/fcl)
 0.7.0（BSD-3-Clause，master@e5efcc4）中抽出 `fcl::distance` 在**网格对网格**这一
